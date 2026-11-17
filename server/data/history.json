@@ -1,0 +1,2180 @@
+{
+ "meta": {
+  "title": "PADDOCK History Archive",
+  "coverage": "1950-2025",
+  "updated": "2026-11-16",
+  "sources": [
+   "Championship and statistics data: Jolpica F1 API (https://api.jolpi.ca/ergast/f1/), baked into this file for offline use",
+   "Editorial summaries: written by PADDOCK from published race histories; each decade links its season pages",
+   "Photographs: Wikimedia Commons, credited on each image"
+  ]
+ },
+ "decades": [
+  {
+   "id": "1950s",
+   "label": "1950s",
+   "years": [
+    1950,
+    1959
+   ],
+   "kicker": "The beginning",
+   "title": "Fuel, courage and straw bales",
+   "intro": [
+    "The World Championship began at Silverstone on 13 May 1950 with pre-war Alfa Romeo 158s, supercharged machines designed before the Second World War. Drivers sat upright behind huge front-mounted engines, wore linen shirts and cloth helmets, and raced on public roads and airfields with little protection.",
+    "Juan Manuel Fangio won five titles with four different manufacturers. By the end of the decade the front-engined car was obsolete: the small, light, rear-engined Cooper carried Jack Brabham to the 1959 championship and changed car design for good."
+   ],
+   "moments": [
+    {
+     "date": "13 May 1950",
+     "title": "The first championship race",
+     "text": "Giuseppe Farina wins the British Grand Prix at Silverstone for Alfa Romeo and becomes the first World Champion that November."
+    },
+    {
+     "date": "June 1955",
+     "title": "The shadow of Le Mans",
+     "text": "After the Le Mans disaster in June 1955, several Grands Prix were cancelled and motorsport safety came under public scrutiny."
+    },
+    {
+     "date": "4 August 1957",
+     "title": "Fangio at the Nurburgring",
+     "text": "Driving a Maserati 250F, Fangio hunts down the leading Ferraris in the closing laps of the German Grand Prix, a drive many call his finest. He clinches a fifth title."
+    },
+    {
+     "date": "1958",
+     "title": "The first Constructors' Cup",
+     "text": "Vanwall wins the first constructors' championship, while Mike Hawthorn takes the drivers' title for Ferrari by a single point over Stirling Moss."
+    },
+    {
+     "date": "1959",
+     "title": "The rear-engine revolution",
+     "text": "Jack Brabham wins the title in a Cooper-Climax, proving the engine belongs behind the driver."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Alfa Romeo 158/159 \"Alfetta\"",
+     "year": "1950-51",
+     "text": "A supercharged 1.5-litre straight-eight with roots in 1938. It won the first two world championships."
+    },
+    {
+     "name": "Maserati 250F",
+     "year": "1954-60",
+     "text": "A graceful front-engined car that carried Fangio to his 1957 title. Pictured on this page at the Nurburgring.",
+     "image": {
+      "file": "fangio.jpg",
+      "alt": "Juan Manuel Fangio in the Maserati 250F at the Nurburgring, 1957.",
+      "caption": "Juan Manuel Fangio in the Maserati 250F at the Nurburgring, 1957.",
+      "credit": {
+       "author": "Willy Pragher",
+       "license": "CC BY 3.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by/3.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Fangio_Maserati_250F_exits_pits_Nurburgring_1957.jpg"
+      }
+     }
+    },
+    {
+     "name": "Mercedes-Benz W196",
+     "year": "1954-55",
+     "text": "The Silver Arrows returned with fuel injection and, in streamlined form, enclosed wheels. Fangio won two titles with it."
+    },
+    {
+     "name": "Cooper T51",
+     "year": "1959",
+     "text": "Rear-engined and tiny, it made the established front-engined designs look dated within a season."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Ferrari",
+     "text": "The only team to have contested every season since 1950."
+    },
+    {
+     "name": "Alfa Romeo",
+     "text": "Won the first two championships before withdrawing."
+    },
+    {
+     "name": "Maserati",
+     "text": "Supplied Fangio's 250F and customer teams across the decade."
+    },
+    {
+     "name": "Vanwall",
+     "text": "The first British winner of the constructors' title, in 1958."
+    },
+    {
+     "name": "Cooper",
+     "text": "Pioneered the rear-engined car and won the 1959 and 1960 titles."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "1950",
+     "text": "Championship points go to the top five, with one point for fastest lap."
+    },
+    {
+     "year": "1954",
+     "text": "Engines are limited to 2.5 litres after two seasons using Formula 2 cars."
+    },
+    {
+     "year": "1958",
+     "text": "A constructors' championship is introduced alongside the drivers' title."
+    }
+   ],
+   "image": {
+    "file": "d1950.jpg",
+    "alt": "An Alfa Romeo 158, the car that opened the World Championship in 1950.",
+    "caption": "An Alfa Romeo 158, the car that opened the World Championship in 1950.",
+    "credit": {
+     "author": "azrhey",
+     "license": "CC BY-SA 2.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0",
+     "source": "https://commons.wikimedia.org/wiki/File:Alfa_Romeo_158_Alfetta_1950_Museo_Storico_OCT_2015.jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "1950 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1950_Formula_One_World_Championship"
+    },
+    {
+     "label": "1955 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1955_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "1960s",
+   "label": "1960s",
+   "years": [
+    1960,
+    1969
+   ],
+   "kicker": "Revolution",
+   "title": "The year the engine moved",
+   "intro": [
+    "The sixties were British. Lotus, Cooper, BRM and later Brabham, McLaren and Matra built cars around Coventry-Climax and Cosworth engines. Colin Chapman's Lotus 25 introduced the monocoque chassis, and Jim Clark made it look effortless.",
+    "It was also the decade of great loss and slow progress on safety, and of the first commercial livery and aerodynamic wings, which changed how Formula 1 looked and paid for itself."
+   ],
+   "moments": [
+    {
+     "date": "1961",
+     "title": "Monza tragedy",
+     "text": "Wolfgang von Trips is killed in the Italian Grand Prix, a few weeks before he would have been a championship contender."
+    },
+    {
+     "date": "1962",
+     "title": "The monocoque arrives",
+     "text": "Lotus enters the 25, a car built around a stiff aluminium tub, and the rest of the grid has to follow."
+    },
+    {
+     "date": "4 June 1967",
+     "title": "Cosworth DFV debuts",
+     "text": "Jim Clark wins the Dutch Grand Prix in the Lotus 49, the first race for the Ford-funded Cosworth DFV, an engine that would dominate for 15 years."
+    },
+    {
+     "date": "7 April 1968",
+     "title": "Jim Clark dies",
+     "text": "The reigning champion is killed in a Formula 2 race at Hockenheim. The sport loses its most gifted driver of the era."
+    },
+    {
+     "date": "1968-69",
+     "title": "Sponsors and wings",
+     "text": "Gold Leaf Lotus brings tobacco livery to F1, and high-mounted wings appear before being restricted after crashes in 1969."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Lotus 25",
+     "year": "1962",
+     "text": "The first monocoque Formula 1 car. Clark and the 25 took the 1963 title."
+    },
+    {
+     "name": "Lotus 49",
+     "year": "1967",
+     "text": "The Cosworth DFV was bolted to the chassis as a stressed member, a layout still used today.",
+     "image": {
+      "file": "d1960.jpg",
+      "alt": "A Lotus 49, the car that introduced the Cosworth DFV engine.",
+      "caption": "A Lotus 49, the car that introduced the Cosworth DFV engine.",
+      "credit": {
+       "author": "Deep silence (Mikaël Restoux)",
+       "license": "CC BY-SA 3.0",
+       "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+       "source": "https://commons.wikimedia.org/wiki/File:Lotus_49-1.JPG"
+      }
+     }
+    },
+    {
+     "name": "Brabham BT19/BT24",
+     "year": "1966-67",
+     "text": "Jack Brabham became the only driver to win a title in a car bearing his own name in 1966; Denny Hulme took the 1967 crown."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Lotus",
+     "text": "Innovators under Colin Chapman and winners with Clark and Graham Hill."
+    },
+    {
+     "name": "BRM",
+     "text": "Graham Hill's 1962 title was the first for the British Racing Motors team."
+    },
+    {
+     "name": "Brabham",
+     "text": "Jack Brabham's own team won both titles in 1966."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Champions with Phil Hill in 1961 and John Surtees in 1964."
+    },
+    {
+     "name": "Matra",
+     "text": "French chassis with Ford power carried Jackie Stewart to his first title in 1969."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "1961",
+     "text": "The 1.5-litre formula begins."
+    },
+    {
+     "year": "1966",
+     "text": "Engine capacity rises to 3.0 litres, which is why the Cosworth DFV era was so powerful."
+    }
+   ],
+   "image": {
+    "file": "d1960.jpg",
+    "alt": "The Lotus 49 of 1967.",
+    "caption": "The Lotus 49 of 1967.",
+    "credit": {
+     "author": "Deep silence (Mikaël Restoux)",
+     "license": "CC BY-SA 3.0",
+     "licenseUrl": "http://creativecommons.org/licenses/by-sa/3.0/",
+     "source": "https://commons.wikimedia.org/wiki/File:Lotus_49-1.JPG"
+    }
+   },
+   "references": [
+    {
+     "label": "1960 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1960_Formula_One_World_Championship"
+    },
+    {
+     "label": "1965 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1965_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "1970s",
+   "label": "1970s",
+   "years": [
+    1970,
+    1979
+   ],
+   "kicker": "Glamour and danger",
+   "title": "Ground effect, wings and rivalries",
+   "intro": [
+    "Peak glamour and peak risk. The Lotus 72 and Ferrari 312T showed that clever packaging beat raw power, while Jackie Stewart's safety campaigns slowly changed circuits and car construction.",
+    "The decade ended with ground effect: Lotus learned to turn the whole car into an inverted wing, and aerodynamics became the main battleground."
+   ],
+   "moments": [
+    {
+     "date": "5 September 1970",
+     "title": "Rindt's posthumous title",
+     "text": "Jochen Rindt is killed in practice at Monza and remains the only posthumous world champion."
+    },
+    {
+     "date": "1 August 1976",
+     "title": "Lauda's Nurburgring crash",
+     "text": "Niki Lauda is trapped in a burning Ferrari. He returns to race at Monza six weeks later."
+    },
+    {
+     "date": "24 October 1976",
+     "title": "Hunt takes the title by a point",
+     "text": "Lauda withdraws in heavy rain at Fuji, handing James Hunt the championship by a single point."
+    },
+    {
+     "date": "1977",
+     "title": "The first turbo",
+     "text": "Renault enters a turbocharged car at the British Grand Prix, starting a revolution that would define the next decade."
+    },
+    {
+     "date": "1978",
+     "title": "The fan car",
+     "text": "Brabham's BT46B wins the Swedish Grand Prix with a fan sucking it to the track and is then withdrawn."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Lotus 72",
+     "year": "1970-75",
+     "text": "A wedge-shaped car with side radiators and torsion-bar suspension, the template of the decade.",
+     "image": {
+      "file": "d1970.jpg",
+      "alt": "Emerson Fittipaldi's Lotus 72.",
+      "caption": "Emerson Fittipaldi's Lotus 72.",
+      "credit": {
+       "author": "Neil",
+       "license": "CC BY 4.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Lotus_72_-_Emerson_Fittipaldi_(54667097918).jpg"
+      }
+     }
+    },
+    {
+     "name": "Ferrari 312T",
+     "year": "1975-76",
+     "text": "A transverse gearbox improved handling and carried Niki Lauda to the 1975 title.",
+     "image": {
+      "file": "lauda.jpg",
+      "alt": "Niki Lauda in the Ferrari 312T2 in 1976.",
+      "caption": "Niki Lauda in the Ferrari 312T2 in 1976.",
+      "credit": {
+       "author": "Lothar Spurzem",
+       "license": "CC BY-SA 2.0 de",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/de/deed.en",
+       "source": "https://commons.wikimedia.org/wiki/File:LaudaNiki19760731Ferrari312T2.jpg"
+      }
+     }
+    },
+    {
+     "name": "Tyrrell P34",
+     "year": "1976",
+     "text": "The six-wheeler, a radical attempt to reduce front-end drag, that won in Sweden."
+    },
+    {
+     "name": "Lotus 79",
+     "year": "1978",
+     "text": "The ground-effect car that carried Mario Andretti to the 1978 title."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Lotus",
+     "text": "Champions in 1970, 1972 and 1978."
+    },
+    {
+     "name": "Tyrrell",
+     "text": "Stewart's home for titles in 1971 and 1973."
+    },
+    {
+     "name": "McLaren",
+     "text": "Won titles with Emerson Fittipaldi in 1974 and James Hunt in 1976."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Revived by Lauda and later Jody Scheckter, champion in 1979."
+    },
+    {
+     "name": "Brabham",
+     "text": "Brilliant, inventive and sometimes controversial."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "1970s",
+     "text": "Safety campaigns lead to safer circuits, barriers and fire protection."
+    },
+    {
+     "year": "1977",
+     "text": "Turbocharging debuts under the 3.0-litre / 1.5-litre turbo formula."
+    },
+    {
+     "year": "1978",
+     "text": "Ground effect arrives with the Lotus 79."
+    }
+   ],
+   "image": {
+    "file": "d1970.jpg",
+    "alt": "The Lotus 72 of Emerson Fittipaldi.",
+    "caption": "The Lotus 72 of Emerson Fittipaldi.",
+    "credit": {
+     "author": "Neil",
+     "license": "CC BY 4.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by/4.0",
+     "source": "https://commons.wikimedia.org/wiki/File:Lotus_72_-_Emerson_Fittipaldi_(54667097918).jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "1970 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1970_Formula_One_World_Championship"
+    },
+    {
+     "label": "1975 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1975_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "1980s",
+   "label": "1980s",
+   "years": [
+    1980,
+    1989
+   ],
+   "kicker": "The turbo age",
+   "title": "Fire, speed and the McLaren dynasty",
+   "intro": [
+    "Turbocharged engines produced over 1,000 horsepower in qualifying trim. Ground effect was banned from 1983 for safety, and the decade became a battle of engines: Renault, Ferrari, BMW, Honda and TAG-Porsche.",
+    "It ended in McLaren dominance and the Senna-Prost rivalry, the most consequential in the sport's history."
+   ],
+   "moments": [
+    {
+     "date": "1982",
+     "title": "A tragic season",
+     "text": "Gilles Villeneuve dies at Zolder, and Didier Pironi is badly injured at Hockenheim."
+    },
+    {
+     "date": "21 October 1984",
+     "title": "Lauda by half a point",
+     "text": "Lauda wins the title at Estoril by half a point from his teammate Prost."
+    },
+    {
+     "date": "1988",
+     "title": "McLaren MP4/4",
+     "text": "McLaren wins 15 of 16 races. Senna takes his first title, with Prost second."
+    },
+    {
+     "date": "22 October 1989",
+     "title": "Suzuka collision",
+     "text": "Senna and Prost collide at the chicane. Senna is disqualified and Prost takes the title."
+    }
+   ],
+   "cars": [
+    {
+     "name": "McLaren MP4/2",
+     "year": "1984-86",
+     "text": "Designed by John Barnard, carbon fibre monocoque, TAG-Porsche turbo power. Prost won titles in 1985 and 1986.",
+     "image": {
+      "file": "prost.jpg",
+      "alt": "Alain Prost in the McLaren MP4/2B, 1985.",
+      "caption": "Alain Prost in the McLaren MP4/2B, 1985.",
+      "credit": {
+       "author": "Lothar Spurzem",
+       "license": "CC BY-SA 2.0 de",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/2.0/de/deed.en",
+       "source": "https://commons.wikimedia.org/wiki/File:ProstAlain_McLarenMP4-2B_1985.jpg"
+      }
+     }
+    },
+    {
+     "name": "McLaren MP4/4",
+     "year": "1988",
+     "text": "Honda turbo power and a low-slung body: 15 wins from 16 races.",
+     "image": {
+      "file": "d1980.jpg",
+      "alt": "The McLaren MP4/4.",
+      "caption": "The McLaren MP4/4.",
+      "credit": {
+       "author": "Hullian111",
+       "license": "CC BY-SA 4.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+       "source": "https://commons.wikimedia.org/wiki/File:McLaren_MP4-4_at_Formula_1_Exhibition,_London_01.jpg"
+      }
+     }
+    },
+    {
+     "name": "Williams FW11",
+     "year": "1986-87",
+     "text": "Honda power took Piquet to the 1987 title and Williams to constructors' titles in both years."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "McLaren",
+     "text": "Dominant in the mid-eighties and in 1988-89 with Honda."
+    },
+    {
+     "name": "Williams",
+     "text": "Champions with Alan Jones in 1980 and Keke Rosberg in 1982, and constructors' champions in 1980, 1981, 1986 and 1987."
+    },
+    {
+     "name": "Brabham",
+     "text": "Nelson Piquet's team for two titles."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Constructors' champions in 1982 and 1983."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "1983",
+     "text": "Ground effect is banned with flat-bottom rules."
+    },
+    {
+     "year": "1989",
+     "text": "Turbo engines are banned for the following season in favour of 3.5-litre naturally aspirated engines."
+    }
+   ],
+   "image": {
+    "file": "d1980.jpg",
+    "alt": "The 1988 McLaren MP4/4.",
+    "caption": "The 1988 McLaren MP4/4.",
+    "credit": {
+     "author": "Hullian111",
+     "license": "CC BY-SA 4.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+     "source": "https://commons.wikimedia.org/wiki/File:McLaren_MP4-4_at_Formula_1_Exhibition,_London_01.jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "1980 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1980_Formula_One_World_Championship"
+    },
+    {
+     "label": "1985 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1985_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "1990s",
+   "label": "1990s",
+   "years": [
+    1990,
+    1999
+   ],
+   "kicker": "Technology and tragedy",
+   "title": "Active suspension and Imola",
+   "intro": [
+    "Williams brought active suspension and traction control to the grid. Michael Schumacher arrived in 1991 and changed the sport's expectations of fitness and preparation.",
+    "The decade also contains Imola 1994, where Roland Ratzenberger and Ayrton Senna died in one weekend. Safety reform followed and has not stopped since."
+   ],
+   "moments": [
+    {
+     "date": "1992",
+     "title": "Mansell's dominant year",
+     "text": "Nigel Mansell wins the title with the Williams FW14B, one of the most technologically advanced cars of its time."
+    },
+    {
+     "date": "30 April - 1 May 1994",
+     "title": "Imola",
+     "text": "Roland Ratzenberger and Ayrton Senna die during the San Marino Grand Prix weekend."
+    },
+    {
+     "date": "13 November 1994",
+     "title": "Adelaide",
+     "text": "Schumacher collides with Damon Hill and takes the first of seven titles by a point."
+    },
+    {
+     "date": "1997",
+     "title": "Jerez",
+     "text": "A collision with Jacques Villeneuve costs Schumacher his second place in the final standings."
+    },
+    {
+     "date": "1998-99",
+     "title": "Hakkinen's two titles",
+     "text": "Mika Hakkinen wins in McLaren-Mercedes after a recovery from his Adelaide crash in 1995."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Williams FW14B",
+     "year": "1992",
+     "text": "Active suspension and traction control made it a seemingly unbeatable machine.",
+     "image": {
+      "file": "d1990.jpg",
+      "alt": "Nigel Mansell with the Williams FW14B.",
+      "caption": "Nigel Mansell with the Williams FW14B.",
+      "credit": {
+       "author": "Martin Pettitt",
+       "license": "CC BY 2.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Car_Show_Nigel_Mansell_with_His_1992_Williams-Renault_FW14B_Formula_1_Car.jpg"
+      }
+     }
+    },
+    {
+     "name": "Benetton B194/B195",
+     "year": "1994-95",
+     "text": "Schumacher's title-winning cars, built by Ross Brawn's and Rory Byrne's team."
+    },
+    {
+     "name": "McLaren MP4/13",
+     "year": "1998",
+     "text": "A narrow-track, grooved-tyre car that carried Hakkinen to his first title."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Williams",
+     "text": "Constructors' titles in 1992-94 and 1996-97."
+    },
+    {
+     "name": "McLaren",
+     "text": "Senna's early nineties and Hakkinen's late nineties."
+    },
+    {
+     "name": "Benetton",
+     "text": "Schumacher's first two titles."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Rebuilding for the Schumacher era."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "1993",
+     "text": "Electronic driver aids are banned for 1994."
+    },
+    {
+     "year": "1998",
+     "text": "Narrower cars and grooved tyres arrive to reduce cornering speeds."
+    }
+   ],
+   "image": {
+    "file": "d1990.jpg",
+    "alt": "The Williams FW14B.",
+    "caption": "The Williams FW14B.",
+    "credit": {
+     "author": "Martin Pettitt",
+     "license": "CC BY 2.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+     "source": "https://commons.wikimedia.org/wiki/File:Car_Show_Nigel_Mansell_with_His_1992_Williams-Renault_FW14B_Formula_1_Car.jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "1990 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1990_Formula_One_World_Championship"
+    },
+    {
+     "label": "1995 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/1995_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "2000s",
+   "label": "2000s",
+   "years": [
+    2000,
+    2009
+   ],
+   "kicker": "The red years",
+   "title": "Schumacher, Ferrari and a late shock",
+   "intro": [
+    "Ferrari and Schumacher won five consecutive titles from 2000 to 2004, with the Ferrari F2004 winning 15 of 18 races. The HANS device became mandatory in 2003, and the engine regulations moved from V10 to V8.",
+    "The decade ended with the most surprising title yet: Brawn GP, a team formed from the ashes of Honda, won both championships in 2009."
+   ],
+   "moments": [
+    {
+     "date": "2000",
+     "title": "Ferrari ends a 21-year wait",
+     "text": "Schumacher wins Ferrari's first drivers' title since 1979."
+    },
+    {
+     "date": "2003",
+     "title": "HANS device",
+     "text": "The head and neck support becomes compulsory."
+    },
+    {
+     "date": "19 June 2005",
+     "title": "Indianapolis",
+     "text": "Only six cars start the US Grand Prix after Michelin teams withdraw over tyre safety."
+    },
+    {
+     "date": "2 November 2008",
+     "title": "Hamilton's last-lap title",
+     "text": "Lewis Hamilton passes Timo Glock on the final lap in Brazil to win the title by one point."
+    },
+    {
+     "date": "2009",
+     "title": "Brawn GP",
+     "text": "Jenson Button wins the title with a team that existed for just one season."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Ferrari F2004",
+     "year": "2004",
+     "text": "Won 15 of 18 races in a record season for the team.",
+     "image": {
+      "file": "d2000.jpg",
+      "alt": "A Vodafone-liveried Ferrari of the Schumacher era.",
+      "caption": "A Vodafone-liveried Ferrari of the Schumacher era.",
+      "credit": {
+       "author": "Hydro",
+       "license": "CC BY-SA 4.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Ferrari_Vodafone_Schumacher_(2).jpg"
+      }
+     }
+    },
+    {
+     "name": "Renault R25",
+     "year": "2005",
+     "text": "Fernando Alonso's first title car."
+    },
+    {
+     "name": "Brawn BGP 001",
+     "year": "2009",
+     "text": "Its double diffuser gave it an early advantage and carried Button and the team to both titles."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Ferrari",
+     "text": "Seven constructors' titles in the decade (2000-04, 2007, 2008)."
+    },
+    {
+     "name": "Renault",
+     "text": "Won both championships in 2005 and 2006 with Alonso."
+    },
+    {
+     "name": "McLaren",
+     "text": "Hamilton's 2008 champion team."
+    },
+    {
+     "name": "Brawn GP",
+     "text": "One season, two titles."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "2006",
+     "text": "V8 engines of 2.4 litres replace V10s."
+    },
+    {
+     "year": "2009",
+     "text": "Slick tyres return and KERS is introduced as an option."
+    }
+   ],
+   "image": {
+    "file": "d2000.jpg",
+    "alt": "A Ferrari of the Schumacher era.",
+    "caption": "A Ferrari of the Schumacher era.",
+    "credit": {
+     "author": "Hydro",
+     "license": "CC BY-SA 4.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+     "source": "https://commons.wikimedia.org/wiki/File:Ferrari_Vodafone_Schumacher_(2).jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "2000 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2000_Formula_One_World_Championship"
+    },
+    {
+     "label": "2005 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2005_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "2010s",
+   "label": "2010s",
+   "years": [
+    2010,
+    2019
+   ],
+   "kicker": "The hybrid era",
+   "title": "Vettel, then Mercedes",
+   "intro": [
+    "Sebastian Vettel and Red Bull won four consecutive titles from 2010 to 2013. From 2014, 1.6-litre V6 turbo hybrid power units rewrote the rules and Mercedes won every constructors' title from 2014 to 2021.",
+    "Lewis Hamilton won five drivers' titles in the decade and Nico Rosberg took one in 2016."
+   ],
+   "moments": [
+    {
+     "date": "14 November 2010",
+     "title": "Abu Dhabi finale",
+     "text": "Vettel wins the title as the youngest champion at the time, in a four-way finish."
+    },
+    {
+     "date": "2013",
+     "title": "Vettel's nine in a row",
+     "text": "Vettel wins the final nine races of the season."
+    },
+    {
+     "date": "2014",
+     "title": "The V6 turbo hybrid era",
+     "text": "Mercedes' W05 wins 16 of 19 races."
+    },
+    {
+     "date": "2016",
+     "title": "Rosberg's title",
+     "text": "Nico Rosberg beats his teammate Hamilton by five points and announces his retirement days later."
+    },
+    {
+     "date": "2018",
+     "title": "The halo",
+     "text": "The cockpit protection device becomes mandatory."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Mercedes F1 W05",
+     "year": "2014",
+     "text": "Hybrid power unit excellence, winning 16 of 19 races.",
+     "image": {
+      "file": "d2010.jpg",
+      "alt": "The Mercedes F1 W05.",
+      "caption": "The Mercedes F1 W05.",
+      "credit": {
+       "author": "J.H. Sohn",
+       "license": "CC BY 2.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Mercedes_F1_W05_Melbourne.jpg"
+      }
+     }
+    },
+    {
+     "name": "Red Bull RB9",
+     "year": "2013",
+     "text": "Adrian Newey's design, the final car of the V8 era to win a title.",
+     "image": {
+      "file": "vettel.jpg",
+      "alt": "Sebastian Vettel in the Red Bull at the 2013 Singapore Grand Prix.",
+      "caption": "Sebastian Vettel in the Red Bull at the 2013 Singapore Grand Prix.",
+      "credit": {
+       "author": "Benjamin Goetzinger",
+       "license": "CC BY-SA 4.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+       "source": "https://commons.wikimedia.org/wiki/File:Formula_One_Grand_Prix_Singapore_2013_-_Sebastian_Vettel_in_Red_Bull_Renault_1.jpg"
+      }
+     }
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Red Bull",
+     "text": "Constructors' champions from 2010 to 2013."
+    },
+    {
+     "name": "Mercedes",
+     "text": "Constructors' champions from 2014 onward."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Strong rival and winner of races across the decade."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "2014",
+     "text": "1.6-litre V6 turbo hybrid power units replace V8 engines."
+    },
+    {
+     "year": "2017",
+     "text": "Wider cars and wider tyres."
+    },
+    {
+     "year": "2018",
+     "text": "The halo becomes mandatory."
+    }
+   ],
+   "image": {
+    "file": "d2010.jpg",
+    "alt": "The Mercedes F1 W05.",
+    "caption": "The Mercedes F1 W05.",
+    "credit": {
+     "author": "J.H. Sohn",
+     "license": "CC BY 2.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by/2.0",
+     "source": "https://commons.wikimedia.org/wiki/File:Mercedes_F1_W05_Melbourne.jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "2010 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2010_Formula_One_World_Championship"
+    },
+    {
+     "label": "2015 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2015_Formula_One_World_Championship"
+    }
+   ]
+  },
+  {
+   "id": "2020s",
+   "label": "2020s",
+   "years": [
+    2020,
+    2029
+   ],
+   "kicker": "The new generation",
+   "title": "Close finishes and fresh rules",
+   "intro": [
+    "The decade began with a shortened COVID-19 season and Hamilton's seventh title, matching Schumacher. The Verstappen-Hamilton fight of 2021 ended at the final corner of the final race.",
+    "Ground-effect cars returned in 2022 along with a budget cap. Max Verstappen and Red Bull dominated until McLaren rose in 2024 and Lando Norris won the 2025 title. New regulations arrived in 2026."
+   ],
+   "moments": [
+    {
+     "date": "5 July 2020",
+     "title": "A season delayed",
+     "text": "The season starts in Austria with no crowds and a shortened calendar."
+    },
+    {
+     "date": "12 December 2021",
+     "title": "Abu Dhabi",
+     "text": "Verstappen passes Hamilton on the final lap to win his first title."
+    },
+    {
+     "date": "2023",
+     "title": "Red Bull RB19",
+     "text": "The RB19 wins 21 of 22 races, a record."
+    },
+    {
+     "date": "2025",
+     "title": "Norris champion",
+     "text": "Lando Norris wins the drivers' title for McLaren, who also take the constructors' crown."
+    },
+    {
+     "date": "2026",
+     "title": "A new rulebook",
+     "text": "New power unit and chassis regulations and new teams enter the grid."
+    }
+   ],
+   "cars": [
+    {
+     "name": "Red Bull RB19",
+     "year": "2023",
+     "text": "Won 21 of 22 races in 2023.",
+     "image": {
+      "file": "d2020.jpg",
+      "alt": "The Red Bull RB19.",
+      "caption": "The Red Bull RB19.",
+      "credit": {
+       "author": "Calreyn88",
+       "license": "CC BY-SA 4.0",
+       "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+       "source": "https://commons.wikimedia.org/wiki/File:2023_Red_Bull_RB19.jpg"
+      }
+     }
+    },
+    {
+     "name": "Mercedes W11",
+     "year": "2020",
+     "text": "Hamilton's seventh-title car."
+    }
+   ],
+   "constructors": [
+    {
+     "name": "Red Bull",
+     "text": "Constructors' champions in 2022 and 2023."
+    },
+    {
+     "name": "McLaren",
+     "text": "Constructors' champions in 2024 and 2025."
+    },
+    {
+     "name": "Mercedes",
+     "text": "Eight straight constructors' titles ended in 2021."
+    },
+    {
+     "name": "Ferrari",
+     "text": "Hamilton joined in 2025."
+    }
+   ],
+   "regulations": [
+    {
+     "year": "2021",
+     "text": "A cost cap is introduced."
+    },
+    {
+     "year": "2022",
+     "text": "Ground-effect cars return."
+    },
+    {
+     "year": "2026",
+     "text": "A new generation of power units and chassis rules."
+    }
+   ],
+   "image": {
+    "file": "d2020.jpg",
+    "alt": "Red Bull's RB19.",
+    "caption": "Red Bull's RB19.",
+    "credit": {
+     "author": "Calreyn88",
+     "license": "CC BY-SA 4.0",
+     "licenseUrl": "https://creativecommons.org/licenses/by-sa/4.0",
+     "source": "https://commons.wikimedia.org/wiki/File:2023_Red_Bull_RB19.jpg"
+    }
+   },
+   "references": [
+    {
+     "label": "2020 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2020_Formula_One_World_Championship"
+    },
+    {
+     "label": "2025 Formula One World Championship",
+     "url": "https://en.wikipedia.org/wiki/2025_Formula_One_World_Championship"
+    }
+   ]
+  }
+ ],
+ "seasons": {
+  "1950": {
+   "season": 1950,
+   "champion": {
+    "driverId": "farina",
+    "name": "Nino Farina",
+    "constructor": "Alfa Romeo",
+    "points": 30.0,
+    "wins": 3
+   }
+  },
+  "1951": {
+   "season": 1951,
+   "champion": {
+    "driverId": "fangio",
+    "name": "Juan Fangio",
+    "constructor": "Alfa Romeo",
+    "points": 31.0,
+    "wins": 3
+   }
+  },
+  "1952": {
+   "season": 1952,
+   "champion": {
+    "driverId": "ascari",
+    "name": "Alberto Ascari",
+    "constructor": "Ferrari",
+    "points": 36.0,
+    "wins": 6
+   }
+  },
+  "1953": {
+   "season": 1953,
+   "champion": {
+    "driverId": "ascari",
+    "name": "Alberto Ascari",
+    "constructor": "Ferrari",
+    "points": 34.5,
+    "wins": 5
+   }
+  },
+  "1954": {
+   "season": 1954,
+   "champion": {
+    "driverId": "fangio",
+    "name": "Juan Fangio",
+    "constructor": "Maserati",
+    "points": 42.0,
+    "wins": 6
+   }
+  },
+  "1955": {
+   "season": 1955,
+   "champion": {
+    "driverId": "fangio",
+    "name": "Juan Fangio",
+    "constructor": "Mercedes",
+    "points": 40.0,
+    "wins": 4
+   }
+  },
+  "1956": {
+   "season": 1956,
+   "champion": {
+    "driverId": "fangio",
+    "name": "Juan Fangio",
+    "constructor": "Ferrari",
+    "points": 30.0,
+    "wins": 3
+   }
+  },
+  "1957": {
+   "season": 1957,
+   "champion": {
+    "driverId": "fangio",
+    "name": "Juan Fangio",
+    "constructor": "Maserati",
+    "points": 40.0,
+    "wins": 4
+   }
+  },
+  "1958": {
+   "season": 1958,
+   "champion": {
+    "driverId": "hawthorn",
+    "name": "Mike Hawthorn",
+    "constructor": "Ferrari",
+    "points": 42.0,
+    "wins": 1
+   },
+   "constructorChampion": {
+    "constructorId": "vanwall",
+    "name": "Vanwall",
+    "points": 48.0,
+    "wins": 6
+   }
+  },
+  "1959": {
+   "season": 1959,
+   "champion": {
+    "driverId": "jack_brabham",
+    "name": "Jack Brabham",
+    "constructor": "Cooper-Climax",
+    "points": 31.0,
+    "wins": 2
+   },
+   "constructorChampion": {
+    "constructorId": "cooper-climax",
+    "name": "Cooper-Climax",
+    "points": 40.0,
+    "wins": 5
+   }
+  },
+  "1960": {
+   "season": 1960,
+   "champion": {
+    "driverId": "jack_brabham",
+    "name": "Jack Brabham",
+    "constructor": "Cooper-Climax",
+    "points": 43.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "cooper-climax",
+    "name": "Cooper-Climax",
+    "points": 48.0,
+    "wins": 6
+   }
+  },
+  "1961": {
+   "season": 1961,
+   "champion": {
+    "driverId": "phil_hill",
+    "name": "Phil Hill",
+    "constructor": "Ferrari",
+    "points": 34.0,
+    "wins": 2
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 45.0,
+    "wins": 5
+   }
+  },
+  "1962": {
+   "season": 1962,
+   "champion": {
+    "driverId": "hill",
+    "name": "Graham Hill",
+    "constructor": "BRM",
+    "points": 42.0,
+    "wins": 4
+   },
+   "constructorChampion": {
+    "constructorId": "brm",
+    "name": "BRM",
+    "points": 42.0,
+    "wins": 4
+   }
+  },
+  "1963": {
+   "season": 1963,
+   "champion": {
+    "driverId": "clark",
+    "name": "Jim Clark",
+    "constructor": "Lotus-Climax",
+    "points": 54.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "lotus-climax",
+    "name": "Lotus-Climax",
+    "points": 54.0,
+    "wins": 7
+   }
+  },
+  "1964": {
+   "season": 1964,
+   "champion": {
+    "driverId": "surtees",
+    "name": "John Surtees",
+    "constructor": "Ferrari",
+    "points": 40.0,
+    "wins": 2
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 45.0,
+    "wins": 3
+   }
+  },
+  "1965": {
+   "season": 1965,
+   "champion": {
+    "driverId": "clark",
+    "name": "Jim Clark",
+    "constructor": "Lotus-Climax",
+    "points": 54.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "lotus-climax",
+    "name": "Lotus-Climax",
+    "points": 54.0,
+    "wins": 6
+   }
+  },
+  "1966": {
+   "season": 1966,
+   "champion": {
+    "driverId": "jack_brabham",
+    "name": "Jack Brabham",
+    "constructor": "Brabham-Repco",
+    "points": 42.0,
+    "wins": 4
+   },
+   "constructorChampion": {
+    "constructorId": "brabham-repco",
+    "name": "Brabham-Repco",
+    "points": 42.0,
+    "wins": 4
+   }
+  },
+  "1967": {
+   "season": 1967,
+   "champion": {
+    "driverId": "hulme",
+    "name": "Denny Hulme",
+    "constructor": "Brabham-Repco",
+    "points": 51.0,
+    "wins": 2
+   },
+   "constructorChampion": {
+    "constructorId": "brabham-repco",
+    "name": "Brabham-Repco",
+    "points": 67.0,
+    "wins": 4
+   }
+  },
+  "1968": {
+   "season": 1968,
+   "champion": {
+    "driverId": "hill",
+    "name": "Graham Hill",
+    "constructor": "Lotus-Ford",
+    "points": 48.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "lotus-ford",
+    "name": "Lotus-Ford",
+    "points": 62.0,
+    "wins": 5
+   }
+  },
+  "1969": {
+   "season": 1969,
+   "champion": {
+    "driverId": "stewart",
+    "name": "Jackie Stewart",
+    "constructor": "Matra-Ford",
+    "points": 63.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "matra-ford",
+    "name": "Matra-Ford",
+    "points": 66.0,
+    "wins": 6
+   }
+  },
+  "1970": {
+   "season": 1970,
+   "champion": {
+    "driverId": "rindt",
+    "name": "Jochen Rindt",
+    "constructor": "Team Lotus",
+    "points": 45.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "team_lotus",
+    "name": "Team Lotus",
+    "points": 59.0,
+    "wins": 6
+   }
+  },
+  "1971": {
+   "season": 1971,
+   "champion": {
+    "driverId": "stewart",
+    "name": "Jackie Stewart",
+    "constructor": "Tyrrell",
+    "points": 62.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "tyrrell",
+    "name": "Tyrrell",
+    "points": 73.0,
+    "wins": 7
+   }
+  },
+  "1972": {
+   "season": 1972,
+   "champion": {
+    "driverId": "emerson_fittipaldi",
+    "name": "Emerson Fittipaldi",
+    "constructor": "Team Lotus",
+    "points": 61.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "team_lotus",
+    "name": "Team Lotus",
+    "points": 61.0,
+    "wins": 5
+   }
+  },
+  "1973": {
+   "season": 1973,
+   "champion": {
+    "driverId": "stewart",
+    "name": "Jackie Stewart",
+    "constructor": "Tyrrell",
+    "points": 71.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "team_lotus",
+    "name": "Team Lotus",
+    "points": 91.0,
+    "wins": 7
+   }
+  },
+  "1974": {
+   "season": 1974,
+   "champion": {
+    "driverId": "emerson_fittipaldi",
+    "name": "Emerson Fittipaldi",
+    "constructor": "McLaren",
+    "points": 55.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 72.0,
+    "wins": 4
+   }
+  },
+  "1975": {
+   "season": 1975,
+   "champion": {
+    "driverId": "lauda",
+    "name": "Niki Lauda",
+    "constructor": "Ferrari",
+    "points": 64.5,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 72.5,
+    "wins": 6
+   }
+  },
+  "1976": {
+   "season": 1976,
+   "champion": {
+    "driverId": "hunt",
+    "name": "James Hunt",
+    "constructor": "McLaren",
+    "points": 69.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 83.0,
+    "wins": 6
+   }
+  },
+  "1977": {
+   "season": 1977,
+   "champion": {
+    "driverId": "lauda",
+    "name": "Niki Lauda",
+    "constructor": "Ferrari",
+    "points": 70.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 84.0,
+    "wins": 4
+   }
+  },
+  "1978": {
+   "season": 1978,
+   "champion": {
+    "driverId": "mario_andretti",
+    "name": "Mario Andretti",
+    "constructor": "Team Lotus",
+    "points": 64.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "team_lotus",
+    "name": "Team Lotus",
+    "points": 86.0,
+    "wins": 8
+   }
+  },
+  "1979": {
+   "season": 1979,
+   "champion": {
+    "driverId": "scheckter",
+    "name": "Jody Scheckter",
+    "constructor": "Ferrari",
+    "points": 51.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 113.0,
+    "wins": 6
+   }
+  },
+  "1980": {
+   "season": 1980,
+   "champion": {
+    "driverId": "jones",
+    "name": "Alan Jones",
+    "constructor": "Williams",
+    "points": 67.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 120.0,
+    "wins": 6
+   }
+  },
+  "1981": {
+   "season": 1981,
+   "champion": {
+    "driverId": "piquet",
+    "name": "Nelson Piquet",
+    "constructor": "Brabham",
+    "points": 50.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 95.0,
+    "wins": 4
+   }
+  },
+  "1982": {
+   "season": 1982,
+   "champion": {
+    "driverId": "keke_rosberg",
+    "name": "Keke Rosberg",
+    "constructor": "Williams",
+    "points": 44.0,
+    "wins": 1
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 74.0,
+    "wins": 3
+   }
+  },
+  "1983": {
+   "season": 1983,
+   "champion": {
+    "driverId": "piquet",
+    "name": "Nelson Piquet",
+    "constructor": "Brabham",
+    "points": 59.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 89.0,
+    "wins": 4
+   }
+  },
+  "1984": {
+   "season": 1984,
+   "champion": {
+    "driverId": "lauda",
+    "name": "Niki Lauda",
+    "constructor": "McLaren",
+    "points": 72.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 143.5,
+    "wins": 12
+   }
+  },
+  "1985": {
+   "season": 1985,
+   "champion": {
+    "driverId": "prost",
+    "name": "Alain Prost",
+    "constructor": "McLaren",
+    "points": 73.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 90.0,
+    "wins": 6
+   }
+  },
+  "1986": {
+   "season": 1986,
+   "champion": {
+    "driverId": "prost",
+    "name": "Alain Prost",
+    "constructor": "McLaren",
+    "points": 72.0,
+    "wins": 4
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 141.0,
+    "wins": 9
+   }
+  },
+  "1987": {
+   "season": 1987,
+   "champion": {
+    "driverId": "piquet",
+    "name": "Nelson Piquet",
+    "constructor": "Williams",
+    "points": 73.0,
+    "wins": 3
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 137.0,
+    "wins": 9
+   }
+  },
+  "1988": {
+   "season": 1988,
+   "champion": {
+    "driverId": "senna",
+    "name": "Ayrton Senna",
+    "constructor": "McLaren",
+    "points": 90.0,
+    "wins": 8
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 199.0,
+    "wins": 15
+   }
+  },
+  "1989": {
+   "season": 1989,
+   "champion": {
+    "driverId": "prost",
+    "name": "Alain Prost",
+    "constructor": "McLaren",
+    "points": 76.0,
+    "wins": 4
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 141.0,
+    "wins": 10
+   }
+  },
+  "1990": {
+   "season": 1990,
+   "champion": {
+    "driverId": "senna",
+    "name": "Ayrton Senna",
+    "constructor": "McLaren",
+    "points": 78.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 121.0,
+    "wins": 6
+   }
+  },
+  "1991": {
+   "season": 1991,
+   "champion": {
+    "driverId": "senna",
+    "name": "Ayrton Senna",
+    "constructor": "McLaren",
+    "points": 96.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 139.0,
+    "wins": 8
+   }
+  },
+  "1992": {
+   "season": 1992,
+   "champion": {
+    "driverId": "mansell",
+    "name": "Nigel Mansell",
+    "constructor": "Williams",
+    "points": 108.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 164.0,
+    "wins": 10
+   }
+  },
+  "1993": {
+   "season": 1993,
+   "champion": {
+    "driverId": "prost",
+    "name": "Alain Prost",
+    "constructor": "Williams",
+    "points": 99.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 168.0,
+    "wins": 10
+   }
+  },
+  "1994": {
+   "season": 1994,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Benetton",
+    "points": 92.0,
+    "wins": 8
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 118.0,
+    "wins": 7
+   }
+  },
+  "1995": {
+   "season": 1995,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Benetton",
+    "points": 102.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "benetton",
+    "name": "Benetton",
+    "points": 147.0,
+    "wins": 11
+   }
+  },
+  "1996": {
+   "season": 1996,
+   "champion": {
+    "driverId": "damon_hill",
+    "name": "Damon Hill",
+    "constructor": "Williams",
+    "points": 97.0,
+    "wins": 8
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 175.0,
+    "wins": 12
+   }
+  },
+  "1997": {
+   "season": 1997,
+   "champion": {
+    "driverId": "villeneuve",
+    "name": "Jacques Villeneuve",
+    "constructor": "Williams",
+    "points": 81.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "williams",
+    "name": "Williams",
+    "points": 123.0,
+    "wins": 8
+   }
+  },
+  "1998": {
+   "season": 1998,
+   "champion": {
+    "driverId": "hakkinen",
+    "name": "Mika Häkkinen",
+    "constructor": "McLaren",
+    "points": 100.0,
+    "wins": 8
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 156.0,
+    "wins": 9
+   }
+  },
+  "1999": {
+   "season": 1999,
+   "champion": {
+    "driverId": "hakkinen",
+    "name": "Mika Häkkinen",
+    "constructor": "McLaren",
+    "points": 76.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 128.0,
+    "wins": 6
+   }
+  },
+  "2000": {
+   "season": 2000,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Ferrari",
+    "points": 108.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 170.0,
+    "wins": 10
+   }
+  },
+  "2001": {
+   "season": 2001,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Ferrari",
+    "points": 123.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 179.0,
+    "wins": 9
+   }
+  },
+  "2002": {
+   "season": 2002,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Ferrari",
+    "points": 144.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 221.0,
+    "wins": 15
+   }
+  },
+  "2003": {
+   "season": 2003,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Ferrari",
+    "points": 93.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 158.0,
+    "wins": 8
+   }
+  },
+  "2004": {
+   "season": 2004,
+   "champion": {
+    "driverId": "michael_schumacher",
+    "name": "Michael Schumacher",
+    "constructor": "Ferrari",
+    "points": 148.0,
+    "wins": 13
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 262.0,
+    "wins": 15
+   }
+  },
+  "2005": {
+   "season": 2005,
+   "champion": {
+    "driverId": "alonso",
+    "name": "Fernando Alonso",
+    "constructor": "Renault",
+    "points": 133.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "renault",
+    "name": "Renault",
+    "points": 191.0,
+    "wins": 8
+   }
+  },
+  "2006": {
+   "season": 2006,
+   "champion": {
+    "driverId": "alonso",
+    "name": "Fernando Alonso",
+    "constructor": "Renault",
+    "points": 134.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "renault",
+    "name": "Renault",
+    "points": 206.0,
+    "wins": 8
+   }
+  },
+  "2007": {
+   "season": 2007,
+   "champion": {
+    "driverId": "raikkonen",
+    "name": "Kimi Räikkönen",
+    "constructor": "Ferrari",
+    "points": 110.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 204.0,
+    "wins": 9
+   }
+  },
+  "2008": {
+   "season": 2008,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "McLaren",
+    "points": 98.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "ferrari",
+    "name": "Ferrari",
+    "points": 172.0,
+    "wins": 8
+   }
+  },
+  "2009": {
+   "season": 2009,
+   "champion": {
+    "driverId": "button",
+    "name": "Jenson Button",
+    "constructor": "Brawn",
+    "points": 95.0,
+    "wins": 6
+   },
+   "constructorChampion": {
+    "constructorId": "brawn",
+    "name": "Brawn",
+    "points": 172.0,
+    "wins": 8
+   }
+  },
+  "2010": {
+   "season": 2010,
+   "champion": {
+    "driverId": "vettel",
+    "name": "Sebastian Vettel",
+    "constructor": "Red Bull",
+    "points": 256.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 498.0,
+    "wins": 9
+   }
+  },
+  "2011": {
+   "season": 2011,
+   "champion": {
+    "driverId": "vettel",
+    "name": "Sebastian Vettel",
+    "constructor": "Red Bull",
+    "points": 392.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 650.0,
+    "wins": 12
+   }
+  },
+  "2012": {
+   "season": 2012,
+   "champion": {
+    "driverId": "vettel",
+    "name": "Sebastian Vettel",
+    "constructor": "Red Bull",
+    "points": 281.0,
+    "wins": 5
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 460.0,
+    "wins": 7
+   }
+  },
+  "2013": {
+   "season": 2013,
+   "champion": {
+    "driverId": "vettel",
+    "name": "Sebastian Vettel",
+    "constructor": "Red Bull",
+    "points": 397.0,
+    "wins": 13
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 596.0,
+    "wins": 13
+   }
+  },
+  "2014": {
+   "season": 2014,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 384.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 701.0,
+    "wins": 16
+   }
+  },
+  "2015": {
+   "season": 2015,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 381.0,
+    "wins": 10
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 703.0,
+    "wins": 16
+   }
+  },
+  "2016": {
+   "season": 2016,
+   "champion": {
+    "driverId": "rosberg",
+    "name": "Nico Rosberg",
+    "constructor": "Mercedes",
+    "points": 385.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 765.0,
+    "wins": 19
+   }
+  },
+  "2017": {
+   "season": 2017,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 363.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 668.0,
+    "wins": 12
+   }
+  },
+  "2018": {
+   "season": 2018,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 408.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 655.0,
+    "wins": 11
+   }
+  },
+  "2019": {
+   "season": 2019,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 413.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 739.0,
+    "wins": 15
+   }
+  },
+  "2020": {
+   "season": 2020,
+   "champion": {
+    "driverId": "hamilton",
+    "name": "Lewis Hamilton",
+    "constructor": "Mercedes",
+    "points": 347.0,
+    "wins": 11
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 573.0,
+    "wins": 13
+   }
+  },
+  "2021": {
+   "season": 2021,
+   "champion": {
+    "driverId": "max_verstappen",
+    "name": "Max Verstappen",
+    "constructor": "Red Bull",
+    "points": 395.5,
+    "wins": 10
+   },
+   "constructorChampion": {
+    "constructorId": "mercedes",
+    "name": "Mercedes",
+    "points": 613.5,
+    "wins": 9
+   }
+  },
+  "2022": {
+   "season": 2022,
+   "champion": {
+    "driverId": "max_verstappen",
+    "name": "Max Verstappen",
+    "constructor": "Red Bull",
+    "points": 454.0,
+    "wins": 15
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 759.0,
+    "wins": 17
+   }
+  },
+  "2023": {
+   "season": 2023,
+   "champion": {
+    "driverId": "max_verstappen",
+    "name": "Max Verstappen",
+    "constructor": "Red Bull",
+    "points": 575.0,
+    "wins": 19
+   },
+   "constructorChampion": {
+    "constructorId": "red_bull",
+    "name": "Red Bull",
+    "points": 860.0,
+    "wins": 21
+   }
+  },
+  "2024": {
+   "season": 2024,
+   "champion": {
+    "driverId": "max_verstappen",
+    "name": "Max Verstappen",
+    "constructor": "Red Bull",
+    "points": 437.0,
+    "wins": 9
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 666.0,
+    "wins": 6
+   }
+  },
+  "2025": {
+   "season": 2025,
+   "champion": {
+    "driverId": "norris",
+    "name": "Lando Norris",
+    "constructor": "McLaren",
+    "points": 423.0,
+    "wins": 7
+   },
+   "constructorChampion": {
+    "constructorId": "mclaren",
+    "name": "McLaren",
+    "points": 833.0,
+    "wins": 14
+   }
+  }
+ }
+}
