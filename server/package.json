@@ -1,0 +1,20 @@
+{
+  "name": "paddock-server",
+  "version": "1.0.0",
+  "description": "PADDOCK API: curated history and people content, Jolpica integration and race prediction.",
+  "main": "server.js",
+  "private": true,
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "axios": "^1.21.1",
+    "cors": "^2.8.6",
+    "dotenv": "^18.0.10",
+    "express": "^4.22.3"
+  }
+}
