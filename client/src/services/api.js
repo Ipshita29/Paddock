@@ -1,5 +1,8 @@
 // api.js - the only place where the frontend talks to the PADDOCK server.
-const BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? '/api' : 'http://localhost:5001/api');
+// the deployed backend is used in production, and the local server while developing
+const DEPLOYED_API = 'https://paddock-2ai7.vercel.app/api';
+const LOCAL_API = 'http://localhost:5001/api';
+const BASE = import.meta.env.VITE_API_URL || (import.meta.env.PROD ? DEPLOYED_API : LOCAL_API);
 
 // answers that were already loaded, so the same page does not call the server again and again
 const saved = new Map();

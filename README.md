@@ -46,13 +46,13 @@ When `client/dist` exists, the Express server serves the website and the API fro
 | Variable | Default | Meaning |
 | --- | --- | --- |
 | `PORT` | `5001` | API port. (macOS uses 5000 for AirPlay, so it is avoided.) |
-| `CLIENT_ORIGIN` | `http://localhost:5173` | Origin(s) allowed by CORS, comma separated. |
+| `CLIENT_ORIGIN` | `http://localhost:5173` | Extra origin(s) allowed by CORS, comma separated. `https://paddock-self.vercel.app` is always allowed. |
 | `JOLPICA_BASE_URL` | `https://api.jolpi.ca/ergast/f1` | Data source. |
 | `PYTHON_BIN` | `python3` | Interpreter for the model. |
 | `MODEL_FIRST_SEASON` | `2014` | First season used for model history. |
 | `BACKTEST_FIRST_SEASON` | `2022` | First season of the backtest. |
 
-The client reads the optional `VITE_API_URL` (defaults to `http://localhost:5001/api` in development and `/api` in production). It holds no keys.
+The client reads the optional `VITE_API_URL` (defaults to `http://localhost:5001/api` in development and the deployed backend, `https://paddock-2ai7.vercel.app/api`, in production). It holds no keys.
 
 ## API
 

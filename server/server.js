@@ -9,10 +9,13 @@ const { ApiError, JolpicaError } = require('./services/jolpicaService');
 const app = express();
 const PORT = process.env.PORT || 5001;
 
-const allowedOrigins = [];
+// websites that may call this API: the deployed frontend, plus any set in CLIENT_ORIGIN (default is the local dev site)
+const FRONTEND_URL = 'https://paddock-self.vercel.app';
+const allowedOrigins = [FRONTEND_URL];
 const originList = (process.env.CLIENT_ORIGIN || 'http://localhost:5173').split(',');
 for (let i = 0; i < originList.length; i++) {
-  allowedOrigins.push(originList[i].trim());
+  const origin = originList[i].trim();
+  if (origin && !allowedOrigins.includes(origin)) allowedOrigins.push(origin);
 }
 
 app.use(cors({ origin: allowedOrigins }));
