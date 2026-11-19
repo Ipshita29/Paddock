@@ -12,12 +12,14 @@ import './css/History.css';
 import './css/People.css';
 import './css/Prediction.css';
 
-const TITLES = { '/': 'PADDOCK | The Past. The People. The Next Chapter.', '/history': 'History | PADDOCK', '/people': 'People | PADDOCK', '/prediction': 'Prediction | PADDOCK' };
+const TITLES = { '/': 'PADDOCK | The Past. The People. The Next Chapter.', '/history': 'Stories | PADDOCK', '/people': 'People | PADDOCK', '/prediction': 'Prediction | PADDOCK' };
 
 export default function App() {
   const { pathname } = useLocation();
+  const isStoriesIndex = pathname === '/history';
   useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
-  useEffect(() => { document.title = TITLES['/' + pathname.split('/')[1]] || TITLES['/']; }, [pathname]);
+  // Story articles set their own title; every other page uses the table above.
+  useEffect(() => { if (pathname.startsWith('/history/')) return; document.title = TITLES['/' + pathname.split('/')[1]] || TITLES['/']; }, [pathname]);
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>
@@ -26,14 +28,14 @@ export default function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/history" element={<History />} />
-          <Route path="/history/:decade" element={<History />} />
+          <Route path="/history/:slug" element={<History />} />
           <Route path="/people" element={<People />} />
           <Route path="/people/:driverId" element={<People />} />
           <Route path="/prediction" element={<Prediction />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
-      <Footer />
+      {!isStoriesIndex && <Footer />}
     </>
   );
 }
