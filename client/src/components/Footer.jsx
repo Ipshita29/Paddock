@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { AnimatePresence, motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
-import { AlertTriangle, ArrowUpRight, Loader, Plus as PlusIcon } from 'lucide-react';
+import { motion, useReducedMotion, useTransform } from 'framer-motion';
+import { AlertTriangle, ArrowUpRight, Loader } from 'lucide-react';
 
 /* ------------------------------------------------------------------
    Shared UI pieces live in this file (the project allows no extra
-   component files): Plus, Reveal, SectionHead, RevealText, Faq,
+   component files): Plus, Reveal, SectionHead, RevealText,
    Credit, Status, and the Footer itself.
 ------------------------------------------------------------------ */
 
@@ -64,27 +64,6 @@ export function RevealText({ text, progress, className = '' }) {
   );
 }
 
-/** One-open-at-a-time accordion. */
-export function Faq({ items }) {
-  const [open, setOpen] = useState(0);
-  return (
-    <div className="faq">
-      {items.map((it, i) => (
-        <div className="faq__item" key={it.q}>
-          <button className="faq__q" aria-expanded={open === i} onClick={() => setOpen(open === i ? -1 : i)}><span>{it.q}</span><PlusIcon size={20} /></button>
-          <AnimatePresence initial={false}>
-            {open === i && (
-              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }} style={{ overflow: 'hidden' }}>
-                <p className="faq__a">{it.a}</p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 /** Licence credit line for a Wikimedia Commons photograph. */
 export function Credit({ image, caption = true, className = '' }) {
   if (!image) return null;
@@ -116,7 +95,7 @@ export default function Footer() {
       <div className="footer__top px">
         <p className="footer__big">The Past. The People. <span>The Next Chapter.</span></p>
         <div className="footer__col"><h4>Navigation</h4>
-          <Link to="/">Home <ArrowUpRight size={13} /></Link><Link to="/history">History <ArrowUpRight size={13} /></Link><Link to="/people">People <ArrowUpRight size={13} /></Link><Link to="/prediction">Prediction <ArrowUpRight size={13} /></Link>
+          <Link to="/">Home <ArrowUpRight size={13} /></Link><Link to="/history">Stories <ArrowUpRight size={13} /></Link><Link to="/people">People <ArrowUpRight size={13} /></Link><Link to="/prediction">Prediction <ArrowUpRight size={13} /></Link>
         </div>
         <div className="footer__col"><h4>Sources</h4>
           <a href="https://github.com/jolpica/jolpica-f1" target="_blank" rel="noreferrer noopener">Jolpica F1 API <ArrowUpRight size={13} /></a>
