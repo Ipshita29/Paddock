@@ -9,25 +9,50 @@ import { teamProfile, teamMark } from '../data/teamArchive.js';
 import { getDriverDossier } from '../data/driverDossiers.js';
 import { buildDriverMilestones } from '../data/driverTimeline.js';
 
-/* ----------------------------------------------------------------------------
-   THE GRID: driver archive + magazine-style driver profiles.
-   Photographs: every image path goes through imageSrc() below, and the mapping from
-   a driver to a photograph lives in server/data/people.json ("portraits"). To replace
-   or add a photo, drop the file in client/public/images and edit that one entry.
----------------------------------------------------------------------------- */
+// THE GRID: the driver list and the driver profile pages.
+// The photo for each driver is set in server/data/people.json ("portraits").
+// To change a photo, put the file in client/public/images and edit that entry.
 const IMAGE_BASE = '/images/';
-const imageSrc = (image) => (image ? `${IMAGE_BASE}${image.file}` : null);
-const focusOf = (image) => (image && image.focus ? image.focus : '50% 50%');
+
+function imageSrc(image) {
+  if (!image) return null;
+  return IMAGE_BASE + image.file;
+}
+
+function focusOf(image) {
+  if (image && image.focus) return image.focus;
+  return '50% 50%';
+}
 
 const FILTERS = [['all', 'All drivers'], ['current', 'Current drivers'], ['champions', 'World Champions'], ['retired', 'Retired drivers']];
 const DECADES = ['1950s', '1960s', '1970s', '1980s', '1990s', '2000s', '2010s', '2020s'];
 const PAGE_SIZE = 24;
 
-const initials = (name) => name.split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
-const careerLabel = ([a, b]) => (b === null ? `${a} to present` : a === b ? `${a}` : `${a} to ${b}`);
-const fmtDate = (iso) => (iso ? new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : null);
+// first letters of the first two words of a name, for example "Max Verstappen" gives "MV"
+function initials(name) {
+  const words = name.split(' ');
+  let result = '';
+  for (let i = 0; i < words.length && result.length < 2; i++) {
+    if (words[i] !== '') result += words[i][0];
+  }
+  return result;
+}
 
-/** Photograph with a consistent crop, or a designed placeholder when no photograph is available. */
+// years as text, for example "2015 to present"
+function careerLabel(years) {
+  const start = years[0];
+  const end = years[1];
+  if (end === null) return `${start} to present`;
+  if (start === end) return `${start}`;
+  return `${start} to ${end}`;
+}
+
+function fmtDate(iso) {
+  if (!iso) return null;
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+// the driver's photo, or a placeholder with initials if there is no photo
 function Portrait({ driver, large = false, eager = false }) {
   const [failed, setFailed] = useState(false);
   const src = imageSrc(driver.image);
@@ -42,7 +67,7 @@ function Portrait({ driver, large = false, eager = false }) {
   return <img src={src} alt={driver.image.alt} loading={large || eager ? 'eager' : 'lazy'} decoding="async" style={{ objectPosition: focusOf(driver.image) }} onError={() => setFailed(true)} />;
 }
 
-/* ------------------------------------------------------------------ card */
+// ---------------------------------------------------------------- driver card
 function DriverCard({ d, index, eager = false }) {
   return (
     <Reveal delay={(index % 3) * 0.05} className="gcard">
@@ -63,14 +88,11 @@ function DriverCard({ d, index, eager = false }) {
   );
 }
 
-/* --------------------------------------------------------------- marquees */
+// ---------------------------------------------------------------- moving text strips
 const INTRO = 'Every driver who has started a World Championship Grand Prix, from the first season in 1950 to today. Pick a name and open the story.';
 
-/**
- * Pure-CSS marquees. Each one renders its content twice and slides the track by exactly 50%,
- * so the loop is seamless; every item carries its own trailing space, so no gap can open up.
- * The duplicate half is hidden from assistive tech; reduced-motion users get a static, scrollable strip.
- */
+// Both strips are made with CSS only. The content is drawn twice and the track slides by 50%,
+// so the loop never shows a gap. The second copy is hidden from screen readers.
 function IntroMarquee() {
   const half = (key) => (
     <div className="mq__half" key={key}>
@@ -103,7 +125,7 @@ function DecadeMarquee({ decade, onPick }) {
   );
 }
 
-/* ------------------------------------------------------------------ index */
+// ---------------------------------------------------------------- driver list page
 function Grid() {
   const [params, setParams] = useSearchParams();
   const filter = params.get('filter') || 'all';
@@ -116,26 +138,59 @@ function Grid() {
   const [more, setMore] = useState({ loading: false, error: null });
   const [tick, setTick] = useState(0);
 
-  const set = (patch) => { const next = new URLSearchParams(params); Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k))); setParams(next, { replace: true }); };
+  // change the filters in the URL. An empty value removes that filter.
+  function set(changes) {
+    const next = new URLSearchParams(params);
+    const keys = Object.keys(changes);
+    for (let i = 0; i < keys.length; i++) {
+      if (changes[keys[i]]) {
+        next.set(keys[i], changes[keys[i]]);
+      } else {
+        next.delete(keys[i]);
+      }
+    }
+    setParams(next, { replace: true });
+  }
 
-  // debounce the search box into the URL
-  useEffect(() => { const t = setTimeout(() => { if (input !== q) set({ q: input.trim() }); }, 300); return () => clearTimeout(t); }, [input]); // eslint-disable-line
-
+  // wait 300ms after typing before searching
   useEffect(() => {
-    let live = true;
-    setState((s) => ({ ...s, loading: true, error: null }));
-    getPeople({ filter, decade, search: q, page: 1, limit: PAGE_SIZE })
-      .then((data) => { if (!live) return; setState({ loading: false, error: null, data }); setItems(data.items); setPage(1); })
-      .catch((e) => live && setState({ loading: false, error: e.message, data: null }));
-    return () => { live = false; };
+    const timer = setTimeout(() => {
+      if (input !== q) set({ q: input.trim() });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [input]); // eslint-disable-line
+
+  // load the first page whenever a filter changes
+  useEffect(() => {
+    let active = true;
+    setState((old) => ({ ...old, loading: true, error: null }));
+
+    getPeople({ filter: filter, decade: decade, search: q, page: 1, limit: PAGE_SIZE })
+      .then((data) => {
+        if (!active) return;
+        setState({ loading: false, error: null, data: data });
+        setItems(data.items);
+        setPage(1);
+      })
+      .catch((err) => {
+        if (active) setState({ loading: false, error: err.message, data: null });
+      });
+
+    return () => {
+      active = false;
+    };
   }, [filter, decade, q, tick]);
 
-  const loadMore = () => {
+  function loadMore() {
     setMore({ loading: true, error: null });
-    getPeople({ filter, decade, search: q, page: page + 1, limit: PAGE_SIZE })
-      .then((data) => { setItems((cur) => [...cur, ...data.items]); setPage(page + 1); setMore({ loading: false, error: null }); })
-      .catch((e) => setMore({ loading: false, error: e.message }));
-  };
+    getPeople({ filter: filter, decade: decade, search: q, page: page + 1, limit: PAGE_SIZE })
+      .then((data) => {
+        setItems((current) => [...current, ...data.items]);
+        setPage(page + 1);
+        setMore({ loading: false, error: null });
+      })
+      .catch((err) => setMore({ loading: false, error: err.message }));
+  }
 
   const d = state.data;
 
@@ -192,45 +247,96 @@ function Grid() {
   );
 }
 
-/* ----------------------------------------------------------- career journey */
-/**
- * Groups a driver's seasons into team stints: consecutive seasons with the same team line-up.
- * Everything shown is computed from the driver's own record (teams, starts, wins, podiums, poles, titles,
- * debut and first win); nothing here is written per driver.
- */
+// ---------------------------------------------------------------- career journey
+// Groups a driver's seasons into team stints (consecutive seasons with the same team).
+// Everything is worked out from the driver's own record.
+function sumOf(seasons, key) {
+  let total = 0;
+  for (let i = 0; i < seasons.length; i++) total += seasons[i][key];
+  return total;
+}
+
 function buildStints(p) {
-  const seasons = [...(p.timeline || [])].sort((a, b) => a.season - b.season);
+  const seasons = [...(p.timeline || [])];
+  seasons.sort((a, b) => a.season - b.season);
+
+  // join consecutive seasons with the same teams into one stint
   const stints = [];
-  seasons.forEach((s) => {
+  for (let i = 0; i < seasons.length; i++) {
+    const s = seasons[i];
     const key = s.teams.join(' / ');
-    const prev = stints[stints.length - 1];
-    if (prev && prev.key === key && prev.to === s.season - 1) {
-      prev.to = s.season;
-      prev.seasons.push(s);
-    } else stints.push({ key, teams: s.teams, from: s.season, to: s.season, seasons: [s] });
-  });
-  const latest = seasons.length ? seasons[seasons.length - 1].season : null;
-  return stints.map((st, i) => {
-    const sum = (k) => st.seasons.reduce((a, s) => a + s[k], 0);
-    const titles = st.seasons.filter((s) => s.champion).map((s) => s.season);
-    const inRange = (y) => y >= st.from && y <= st.to;
-    const debut = p.debut && inRange(p.debut.season) ? p.debut : null;
-    const firstWin = p.firstWin && inRange(p.firstWin.season) ? p.firstWin : null;
+    const previous = stints[stints.length - 1];
+    if (previous && previous.key === key && previous.to === s.season - 1) {
+      previous.to = s.season;
+      previous.seasons.push(s);
+    } else {
+      stints.push({ key: key, teams: s.teams, from: s.season, to: s.season, seasons: [s] });
+    }
+  }
+
+  let latest = null;
+  if (seasons.length > 0) latest = seasons[seasons.length - 1].season;
+
+  const result = [];
+  for (let i = 0; i < stints.length; i++) {
+    const st = stints[i];
+
+    const titles = [];
+    for (let j = 0; j < st.seasons.length; j++) {
+      if (st.seasons[j].champion) titles.push(st.seasons[j].season);
+    }
+
+    let debut = null;
+    if (p.debut && p.debut.season >= st.from && p.debut.season <= st.to) debut = p.debut;
+    let firstWin = null;
+    if (p.firstWin && p.firstWin.season >= st.from && p.firstWin.season <= st.to) firstWin = p.firstWin;
+
+    const wins = sumOf(st.seasons, 'wins');
+
     let kicker = `Chapter ${i + 1}`;
-    if (debut) kicker = 'First F1 chapter';
-    else if (titles.length) kicker = 'Championship-winning era';
-    else if (firstWin) kicker = 'First victory';
-    else if (st.teams.length > 1) kicker = 'Mid-season team move';
-    else if (sum('wins') > 0) kicker = 'Race-winning chapter';
+    if (debut) {
+      kicker = 'First F1 chapter';
+    } else if (titles.length > 0) {
+      kicker = 'Championship-winning era';
+    } else if (firstWin) {
+      kicker = 'First victory';
+    } else if (st.teams.length > 1) {
+      kicker = 'Mid-season team move';
+    } else if (wins > 0) {
+      kicker = 'Race-winning chapter';
+    }
+
     const facts = [];
     if (debut) facts.push(['Debut', `${debut.season} ${debut.race}`]);
     if (st.teams.length > 1) facts.push(['Team change', `${st.teams[0]} to ${st.teams[st.teams.length - 1]}, mid-season`]);
     if (firstWin) facts.push(['First win', `${firstWin.season} ${firstWin.race}`]);
-    if (titles.length) facts.push(['World Champion', titles.join(', ')]);
+    if (titles.length > 0) facts.push(['World Champion', titles.join(', ')]);
+
     const active = p.status === 'active' && st.to === latest;
-    return { ...st, i, kicker, facts, titles, active, starts: sum('starts'), wins: sum('wins'), podiums: sum('podiums'), poles: sum('poles'),
-      team: st.teams[st.teams.length - 1], range: st.from === st.to && !active ? `${st.from}` : `${st.from}\u2013${active ? 'Present' : st.to}` };
-  });
+
+    let range = `${st.from}\u2013${st.to}`;
+    if (active) {
+      range = `${st.from}\u2013Present`;
+    } else if (st.from === st.to) {
+      range = `${st.from}`;
+    }
+
+    result.push({
+      ...st,
+      i: i,
+      kicker: kicker,
+      facts: facts,
+      titles: titles,
+      active: active,
+      starts: sumOf(st.seasons, 'starts'),
+      wins: wins,
+      podiums: sumOf(st.seasons, 'podiums'),
+      poles: sumOf(st.seasons, 'poles'),
+      team: st.teams[st.teams.length - 1],
+      range: range,
+    });
+  }
+  return result;
 }
 
 function StintPanel({ st }) {
@@ -271,7 +377,7 @@ function StintPanel({ st }) {
   );
 }
 
-/** A horizontal career archive: one large panel per team stint, joined by a thin line. */
+// one large panel for each team stint, joined by a thin line
 function CareerJourney({ stints }) {
   if (!stints.length) return null;
   return (
@@ -286,7 +392,7 @@ function CareerJourney({ stints }) {
   );
 }
 
-/* ---------------------------------------------------------------- profile */
+// ---------------------------------------------------------------- driver profile page
 function PlatformIcon({ platform }) {
   if (platform === 'instagram') {
     return (
@@ -336,38 +442,28 @@ function PlatformIcon({ platform }) {
 }
 
 function CompactStatsStrip({ stats }) {
-  const titles = stats?.titles || [];
+  let titles = [];
+  let wins = 0;
+  let podiums = 0;
+  let poles = 0;
+  let starts = 0;
+  if (stats) {
+    titles = stats.titles || [];
+    wins = stats.wins || 0;
+    podiums = stats.podiums || 0;
+    poles = stats.poles || 0;
+    starts = stats.starts || 0;
+  }
+
+  let titleNote = 'None';
+  if (titles.length > 0) titleNote = titles.join(', ');
+
   const cells = [
-    {
-      label: 'World Championships',
-      value: titles.length,
-      note: titles.length > 0 ? titles.join(', ') : 'None',
-      highlight: titles.length > 0,
-    },
-    {
-      label: 'Grand Prix Wins',
-      value: stats?.wins ?? 0,
-      note: 'Career Victories',
-      highlight: (stats?.wins ?? 0) > 0,
-    },
-    {
-      label: 'Podium Finishes',
-      value: stats?.podiums ?? 0,
-      note: 'Top 3 Finishes',
-      highlight: false,
-    },
-    {
-      label: 'Pole Positions',
-      value: stats?.poles ?? 0,
-      note: 'P1 Starts',
-      highlight: false,
-    },
-    {
-      label: 'Race Starts',
-      value: stats?.starts ?? 0,
-      note: 'Grand Prix Entries',
-      highlight: false,
-    },
+    { label: 'World Championships', value: titles.length, note: titleNote, highlight: titles.length > 0 },
+    { label: 'Grand Prix Wins', value: wins, note: 'Career Victories', highlight: wins > 0 },
+    { label: 'Podium Finishes', value: podiums, note: 'Top 3 Finishes', highlight: false },
+    { label: 'Pole Positions', value: poles, note: 'P1 Starts', highlight: false },
+    { label: 'Race Starts', value: starts, note: 'Grand Prix Entries', highlight: false },
   ];
 
   return (
@@ -383,12 +479,22 @@ function CompactStatsStrip({ stats }) {
   );
 }
 
-// Only these verified channels are shown, in this order, as icons.
+// only these checked channels are shown, in this order
 const SOCIAL_ORDER = [['instagram', 'Instagram'], ['twitter', 'X'], ['youtube', 'YouTube'], ['wikipedia', 'Wikipedia'], ['website', 'Official website']];
 
 function BeyondThePaddock({ socials }) {
-  const byKey = new Map((socials || []).map((s) => [s.platform, s]));
-  const items = SOCIAL_ORDER.map(([key, name]) => (byKey.has(key) ? { ...byKey.get(key), name } : null)).filter(Boolean);
+  const items = [];
+  const all = socials || [];
+  for (let i = 0; i < SOCIAL_ORDER.length; i++) {
+    const key = SOCIAL_ORDER[i][0];
+    const name = SOCIAL_ORDER[i][1];
+    for (let j = 0; j < all.length; j++) {
+      if (all[j].platform === key) {
+        items.push({ ...all[j], name: name });
+        break;
+      }
+    }
+  }
   if (items.length === 0) return null;
   return (
     <section className="pf-beyond px" aria-label="Beyond the paddock">
@@ -469,11 +575,16 @@ function DriverStorySection({ dossier, rivalry, driverName }) {
   );
 }
 
-/* ------------------------------------------------- horizontal career timeline */
+// ---------------------------------------------------------------- career timeline
 function TimelineItem({ m, season, i }) {
   const reduce = useReducedMotion();
   const [open, setOpen] = useState(false);
-  const seasonLine = season ? `${season.starts} starts \u00B7 ${season.wins} win${season.wins === 1 ? '' : 's'} \u00B7 ${season.podiums} podium${season.podiums === 1 ? '' : 's'}` : null;
+  let seasonLine = null;
+  if (season) {
+    const winText = season.wins === 1 ? 'win' : 'wins';
+    const podiumText = season.podiums === 1 ? 'podium' : 'podiums';
+    seasonLine = `${season.starts} starts \u00B7 ${season.wins} ${winText} \u00B7 ${season.podiums} ${podiumText}`;
+  }
   const hasMore = Boolean(m.detail || seasonLine);
   return (
     <motion.li className={`ht__item ${m.important ? 'is-key' : ''}`}
@@ -500,14 +611,32 @@ function TimelineItem({ m, season, i }) {
   );
 }
 
-/** One horizontal strip of connected milestone cards. Milestones are plain data, so it works for every driver. */
+// one horizontal strip of milestone cards
 function HorizontalTimeline({ milestones, seasons }) {
   const track = useRef(null);
   const [edge, setEdge] = useState({ left: false, right: true });
-  const bySeason = new Map((seasons || []).map((x) => [x.season, x]));
-  const measure = () => { const t = track.current; if (t) setEdge({ left: t.scrollLeft > 4, right: t.scrollLeft + t.clientWidth < t.scrollWidth - 4 }); };
-  useEffect(() => { measure(); window.addEventListener('resize', measure); return () => window.removeEventListener('resize', measure); }, [milestones]); // eslint-disable-line
-  const step = (dir) => track.current && track.current.scrollBy({ left: dir * 300, behavior: 'smooth' });
+  const seasonList = seasons || [];
+  const bySeason = new Map();
+  for (let i = 0; i < seasonList.length; i++) bySeason.set(seasonList[i].season, seasonList[i]);
+
+  // check if there is more to scroll to on the left or right (to show the arrows)
+  function measure() {
+    const t = track.current;
+    if (t) {
+      setEdge({ left: t.scrollLeft > 4, right: t.scrollLeft + t.clientWidth < t.scrollWidth - 4 });
+    }
+  }
+
+  useEffect(() => {
+    measure();
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, [milestones]); // eslint-disable-line
+
+  function step(direction) {
+    if (track.current) track.current.scrollBy({ left: direction * 300, behavior: 'smooth' });
+  }
+
   if (!milestones || milestones.length === 0) return null;
   return (
     <div className="ht" aria-label="Career milestones, scrolls horizontally">
@@ -527,11 +656,18 @@ function HorizontalTimeline({ milestones, seasons }) {
 function Profile({ driverId }) {
   const reduce = useReducedMotion();
   const [state, setState] = useState({ loading: true, error: null, data: null });
-  const load = () => {
+
+  function load() {
     setState({ loading: true, error: null, data: null });
-    getPerson(driverId).then((data) => setState({ loading: false, error: null, data })).catch((e) => setState({ loading: false, error: e.message, data: null }));
-  };
-  useEffect(load, [driverId]);
+    getPerson(driverId)
+      .then((data) => setState({ loading: false, error: null, data: data }))
+      .catch((err) => setState({ loading: false, error: err.message, data: null }));
+  }
+
+  useEffect(() => {
+    load();
+  }, [driverId]);
+
   const p = state.data;
 
   if (!p) {
@@ -546,9 +682,14 @@ function Profile({ driverId }) {
   const born = fmtDate(p.dateOfBirth);
   const dossier = getDriverDossier(p);
   const socials = getDriverSocials(p);
-  // a curated timeline from the driver's dossier when there is one, otherwise generated from their record
-  const milestones = dossier && Array.isArray(dossier.timeline) && dossier.timeline.length ? dossier.timeline : buildDriverMilestones(p);
+  // use the hand-written timeline if the driver has one, otherwise build it from their record
+  let milestones = buildDriverMilestones(p);
+  if (dossier && Array.isArray(dossier.timeline) && dossier.timeline.length > 0) {
+    milestones = dossier.timeline;
+  }
   const stints = buildStints(p);
+  let tagline = p.tagline;
+  if (!tagline && dossier) tagline = dossier.leadQuote;
 
   return (
     <div className="dark pf-flow">
@@ -577,9 +718,7 @@ function Profile({ driverId }) {
               {p.name}
             </motion.h1>
 
-            {(p.tagline || dossier?.leadQuote) && (
-              <p className="pf-dossier__tagline">{p.tagline || dossier?.leadQuote}</p>
-            )}
+            {tagline && <p className="pf-dossier__tagline">{tagline}</p>}
 
             {/* Dossier Specifications Matrix */}
             <div className="pf-dossier__specs">

@@ -1,13 +1,5 @@
-/**
- * Verified official driver social profiles, websites, and reference archives.
- *
- * RULES:
- * - Only genuine official accounts verified via driver websites, team rosters, or verified badges.
- * - Never construct social URLs from guessed handles.
- * - Never display fake follower counts.
- * - If a platform is unverified or non-existent, it is omitted.
- * - Wikipedia is treated as an encyclopedic reference archive.
- */
+// Checked driver profile links. Only real, official accounts are listed.
+// A link is never guessed from a driver's name, and a missing platform is simply left out.
 
 // Removed after a link check on 19 Nov 2026 (404, expired or mismatched certificate, CMS error page or connection failure).
 // Restore an entry here once the destination works again:
@@ -248,10 +240,8 @@ export const DRIVER_SOCIALS = {
   },
 };
 
-/**
- * Returns an array of verified profile cards for a given driver object.
- * Always includes Wikipedia reference as a documented encyclopedia source.
- */
+// Returns the checked profile links for a driver (only links that exist in DRIVER_SOCIALS).
+// A link guessed from a driver's name is never added, because it could be wrong.
 export function getDriverSocials(driver) {
   if (!driver) return [];
   const id = driver.driverId || driver.id;
@@ -267,20 +257,17 @@ export function getDriverSocials(driver) {
   ];
 
   const results = [];
-
-  for (const { key, label, kind } of platforms) {
-    if (entry[key]) {
+  for (let i = 0; i < platforms.length; i++) {
+    const platform = platforms[i];
+    if (entry[platform.key]) {
       results.push({
-        platform: key,
-        label,
-        kind,
-        handle: entry[key].handle,
-        url: entry[key].url,
+        platform: platform.key,
+        label: platform.label,
+        kind: platform.kind,
+        handle: entry[platform.key].handle,
+        url: entry[platform.key].url,
       });
     }
-    // No fallback: a URL guessed from a driver's name is not verified (common names land on disambiguation pages).
   }
-
   return results;
 }
-

@@ -10,29 +10,59 @@ const LINKS = [
   { to: '/prediction', label: 'Prediction', n: '4.0' },
 ];
 
-/** Logo left, translucent numbered bar centre, black menu button right opening a full ivory menu. */
+// logo on the left, links in the middle, menu button on the right
 export default function Navbar() {
   const [open, setOpen] = useState(false);
   const [light, setLight] = useState(false);
   const { pathname } = useLocation();
-  useEffect(() => { setOpen(false); }, [pathname]);
-  // Switch the bar to dark text while it sits over an ivory (.light) section.
+  // close the menu when the page changes
   useEffect(() => {
-    const check = () => {
-      const els = document.elementsFromPoint(window.innerWidth / 2, 40);
-      const hit = els.find((e) => !e.closest('.nav') && !e.closest('.menu') && e.closest('.light, .dark'));
-      setLight(!!(hit && hit.closest('.light')));
-    };
-    check(); window.addEventListener('scroll', check, { passive: true }); window.addEventListener('resize', check);
-    const t = setTimeout(check, 400);
-    return () => { window.removeEventListener('scroll', check); window.removeEventListener('resize', check); clearTimeout(t); };
+    setOpen(false);
   }, [pathname]);
+
+  // use dark text while the bar is over a light section
+  useEffect(() => {
+    function check() {
+      const elements = document.elementsFromPoint(window.innerWidth / 2, 40);
+      let found = null;
+      for (let i = 0; i < elements.length; i++) {
+        const el = elements[i];
+        if (el.closest('.nav') || el.closest('.menu')) continue;
+        if (el.closest('.light, .dark')) {
+          found = el;
+          break;
+        }
+      }
+      setLight(found !== null && found.closest('.light') !== null);
+    }
+
+    check();
+    window.addEventListener('scroll', check, { passive: true });
+    window.addEventListener('resize', check);
+    const timer = setTimeout(check, 400);
+    return () => {
+      window.removeEventListener('scroll', check);
+      window.removeEventListener('resize', check);
+      clearTimeout(timer);
+    };
+  }, [pathname]);
+
+  // stop the page from scrolling while the menu is open, and close it with Escape
   useEffect(() => {
     document.body.style.overflow = open ? 'hidden' : '';
-    const onKey = (e) => e.key === 'Escape' && setOpen(false);
+
+    function onKey(e) {
+      if (e.key === 'Escape') setOpen(false);
+    }
     window.addEventListener('keydown', onKey);
-    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = '';
+    };
   }, [open]);
+
+  const dots = [];
+  for (let i = 0; i < 9; i++) dots.push(<i key={i} />);
 
   return (
     <>
@@ -44,7 +74,7 @@ export default function Navbar() {
           ))}
         </nav>
         <button className="nav__menu" onClick={() => setOpen(true)} aria-label="Open menu" aria-expanded={open}>
-          <span className="dots" aria-hidden="true">{Array.from({ length: 9 }).map((_, i) => <i key={i} />)}</span>
+          <span className="dots" aria-hidden="true">{dots}</span>
         </button>
       </header>
       <AnimatePresence>

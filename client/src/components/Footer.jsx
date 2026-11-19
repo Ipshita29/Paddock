@@ -3,13 +3,10 @@ import { Link } from 'react-router-dom';
 import { motion, useReducedMotion, useTransform } from 'framer-motion';
 import { AlertTriangle, ArrowUpRight, Loader } from 'lucide-react';
 
-/* ------------------------------------------------------------------
-   Shared UI pieces live in this file (the project allows no extra
-   component files): Plus, Reveal, SectionHead, RevealText,
-   Credit, Status, and the Footer itself.
------------------------------------------------------------------- */
+// Small shared pieces (Plus, Reveal, SectionHead, RevealText, Credit, Status) and the Footer.
+// They live in this file because the project has no separate component files for them.
 
-/** The small orange "+" crosshair that precedes labels. */
+// the small orange + sign before labels
 export function Plus({ size = 16, children, className = '' }) {
   return (
     <span className={`plus ${className}`}>
@@ -19,11 +16,8 @@ export function Plus({ size = 16, children, className = '' }) {
   );
 }
 
-/**
- * Lifts children into place as they scroll into view. It only moves content (it never starts at
- * zero opacity), so text is always visible even in full-page captures, print or when scroll
- * events never fire. Off for reduced-motion users.
- */
+// moves its content up a little when it scrolls into view
+// it never starts invisible, so text can always be read
 export function Reveal({ children, delay = 0, className = '', as = 'div', ...rest }) {
   const reduce = useReducedMotion();
   const Tag = motion[as];
@@ -36,7 +30,7 @@ export function Reveal({ children, delay = 0, className = '', as = 'div', ...res
   );
 }
 
-/** "+ Label" left, big two-tone heading middle, orange count pill right. */
+// section heading: label on the left, big title, count on the right
 export function SectionHead({ label, lead, tail, count }) {
   return (
     <div className="shead px">
@@ -52,7 +46,7 @@ function Word({ children, progress, range }) {
   return <motion.span style={{ color }}>{children} </motion.span>;
 }
 
-/** Statement whose words turn from grey to white as you scroll. `progress` is a motion value from 0 to 1. */
+// words turn from grey to white as you scroll (progress goes from 0 to 1)
 export function RevealText({ text, progress, className = '' }) {
   const reduce = useReducedMotion();
   const words = text.split(' ');
@@ -64,7 +58,7 @@ export function RevealText({ text, progress, className = '' }) {
   );
 }
 
-/** Licence credit line for a Wikimedia Commons photograph. */
+// photo credit line for a Wikimedia Commons photograph
 export function Credit({ image, caption = true, className = '' }) {
   if (!image) return null;
   const c = image.credit;
@@ -75,7 +69,7 @@ export function Credit({ image, caption = true, className = '' }) {
   );
 }
 
-/** Loading and error states used by every page. */
+// loading and error messages used by every page
 export function Status({ loading, error, onRetry, label = 'Loading' }) {
   if (loading) return <div className="status" role="status"><Loader size={18} className="spin" /><span>{label}</span></div>;
   if (error) {

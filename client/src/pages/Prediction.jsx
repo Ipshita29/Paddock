@@ -1,56 +1,89 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Ban, Check, Minus, Plus as PlusIcon, X } from 'lucide-react';
 import { Reveal, Status } from '../components/Footer.jsx';
 import { getNextRace } from '../services/api.js';
 
-/* ----------------------------------------------------------------------------
-   PREDICTION
-   1. Upcoming race: the race on the left, the model's predicted podium on the right.
-   2. The podium, revisited: a carousel of completed races, each in the winning team's colours.
-   3. How PADDOCK predicts: three short expandable notes.
-   Everything comes from GET /api/prediction/next-race. Team colours are presentation only.
----------------------------------------------------------------------------- */
+// PREDICTION PAGE
+// 1. Next race: the race on the left, the predicted podium on the right.
+// 2. The podium, revisited: a carousel of finished races.
+// 3. How PADDOCK predicts: three short notes.
+// All data comes from GET /api/prediction/next-race. Team colours are only for looks.
 
-// Official-style team colours by Jolpica constructor id (presentation only).
+// team colours by Jolpica constructor id
 const TEAM = {
   ferrari: '#E8002D', mercedes: '#27F4D2', mclaren: '#FF8000', red_bull: '#3671C6', williams: '#64C4FF',
   alpine: '#FF87BC', renault: '#FFD800', aston_martin: '#229971', haas: '#B6BABD', rb: '#6692FF',
   alphatauri: '#6692FF', toro_rosso: '#4A6FD6', sauber: '#52E252', alfa: '#C92D4B', audi: '#C8CDD2',
   cadillac: '#A5ADB8', force_india: '#F596C8', racing_point: '#F596C8', lotus_f1: '#F5B700', marussia: '#C0392B', manor: '#C0392B', caterham: '#1E8449',
 };
-const teamColor = (id) => TEAM[id] || '#8A8A8A';
+function teamColor(id) {
+  return TEAM[id] || '#8A8A8A';
+}
 
-const pad = (n) => String(n).padStart(2, '0');
-const longDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
-const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-const initials = (n) => n.split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
-const surname = (n) => n.trim().split(/\s+/).slice(-1)[0];
-const forename = (n) => n.trim().split(/\s+/).slice(0, -1).join(' ');
+function pad(n) {
+  return String(n).padStart(2, '0');
+}
 
-/** Portrait in an arched frame, or the driver's initials when no photograph exists. */
+function longDate(iso) {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+function shortDate(iso) {
+  return new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+// "Max Verstappen" gives "MV"
+function initials(name) {
+  const words = name.split(' ');
+  let result = '';
+  for (let i = 0; i < words.length && result.length < 2; i++) {
+    if (words[i] !== '') result += words[i][0];
+  }
+  return result;
+}
+
+// last word of the name
+function surname(name) {
+  const words = name.trim().split(/\s+/);
+  return words[words.length - 1];
+}
+
+// everything before the last word
+function forename(name) {
+  const words = name.trim().split(/\s+/);
+  return words.slice(0, words.length - 1).join(' ');
+}
+
+// the driver's photo, or their initials if there is no photo
 function Face({ d }) {
   const [failed, setFailed] = useState(false);
   if (d.image && !failed) return <img src={`/images/${d.image.file}`} alt={d.image.alt} style={{ objectPosition: d.image.focus }} loading="lazy" onError={() => setFailed(true)} />;
   return <span className="face__init" aria-label={`${d.name}, no photograph`}>{initials(d.name)}</span>;
 }
 
-/** Photo credits for the portraits shown, kept to one subtle line. */
+// one line with the photo credits of the portraits shown
 function Credits({ drivers }) {
-  const seen = new Map();
-  drivers.forEach((d) => { if (d && d.image && d.image.credit && !seen.has(d.image.file)) seen.set(d.image.file, `${surname(d.name)}: ${d.image.credit.author}, ${d.image.credit.license}`); });
-  if (!seen.size) return null;
-  return <p className="pd-credits">Photos via Wikimedia Commons. {[...seen.values()].join(' · ')}</p>;
+  const credits = [];
+  const usedFiles = [];
+  for (let i = 0; i < drivers.length; i++) {
+    const d = drivers[i];
+    if (d && d.image && d.image.credit && !usedFiles.includes(d.image.file)) {
+      usedFiles.push(d.image.file);
+      credits.push(`${surname(d.name)}: ${d.image.credit.author}, ${d.image.credit.license}`);
+    }
+  }
+  if (credits.length === 0) return null;
+  return <p className="pd-credits">Photos via Wikimedia Commons. {credits.join(' · ')}</p>;
 }
 
-/* ------------------------------------------------------------------ podium */
-/**
- * Three-position podium: P2 left, P1 centre (raised), P3 right.
- * `drivers` is an array of up to three {position, name, constructorName, constructorId, image}.
- * With no drivers it renders an empty, outlined podium (used while awaiting qualifying).
- */
+// ---------------------------------------------------------------- podium
+// Podium with three places: P2 on the left, P1 in the middle (higher), P3 on the right.
+// drivers is a list of up to three drivers. With no drivers an empty podium is shown.
 function Podium({ drivers, size = 'lg', empty = false }) {
-  const byPos = new Map((drivers || []).map((d) => [d.position, d]));
+  const byPos = new Map();
+  const list = drivers || [];
+  for (let i = 0; i < list.length; i++) byPos.set(list[i].position, list[i]);
   const order = [2, 1, 3];
   return (
     <div className={`pod pod--${size} ${empty ? 'pod--empty' : ''}`} role="list" aria-label={empty ? 'Podium awaiting qualifying' : 'Podium'}>
@@ -75,10 +108,15 @@ function Podium({ drivers, size = 'lg', empty = false }) {
   );
 }
 
-/* ----------------------------------------------------------- 1. next race */
+// ---------------------------------------------------------------- 1. next race
 function NextRace({ data }) {
   const race = data.race;
-  const top3 = data.status === 'predicted' ? data.prediction.topFive.slice(0, 3).map((d, i) => ({ ...d, position: i + 1 })) : null;
+  let top3 = null;
+  if (data.status === 'predicted') {
+    top3 = [];
+    const topFive = data.prediction.topFive;
+    for (let i = 0; i < 3 && i < topFive.length; i++) top3.push({ ...topFive[i], position: i + 1 });
+  }
   const q = race && race.qualifyingSession;
   const unavailable = ['model-unavailable', 'insufficient-history', 'data-unavailable'].includes(data.status);
 
@@ -120,8 +158,9 @@ function NextRace({ data }) {
   );
 }
 
-/* ------------------------------------------------------- 2. past carousel */
-/** Large, soft podium silhouette used as the card's background. */
+// ---------------------------------------------------------------- 2. past races carousel
+
+// podium shape used as the card background
 function Silhouette() {
   return (
     <svg className="rc__sil" viewBox="0 0 300 160" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
@@ -136,8 +175,7 @@ function Silhouette() {
   );
 }
 
-/* ---------------------------------------------------- prediction outcomes */
-// How good the predicted winner was, judged by where that driver actually finished (classified by the server).
+// how good the predicted winner was, based on where that driver really finished (the server decides this)
 const OUTCOME = {
   exact: { label: 'Exact hit', Icon: Check }, podium: { label: 'Podium hit', Icon: Check }, top5: { label: 'Top 5', Icon: Minus },
   outside: { label: 'Outside top 5', Icon: X }, dnf: { label: 'Did not finish', Icon: Ban }, unavailable: { label: 'Unavailable', Icon: Minus },
@@ -148,31 +186,50 @@ function OutcomePill({ outcome }) {
   return <span className={`pd-res pd-res--${k}`}><Icon size={13} aria-hidden="true" />{label}</span>;
 }
 
-/** Change from predicted to actual position: gained, dropped or exact. */
+// shows how many places a driver gained or lost compared with the prediction
 function Delta({ from, to, finished }) {
   if (finished === false) return <span className="dl dl--dnf" title="Did not finish">DNF</span>;
-  const d = from - to;
-  if (d === 0) return <span className="dl dl--eq" title="Exactly as predicted">Exact</span>;
-  return <span className={`dl ${d > 0 ? 'dl--up' : 'dl--down'}`} title={d > 0 ? `Finished ${d} place${d > 1 ? 's' : ''} higher than predicted` : `Finished ${-d} place${d < -1 ? 's' : ''} lower than predicted`}>{d > 0 ? '\u25B2' : '\u25BC'} {Math.abs(d)}</span>;
+
+  const diff = from - to;
+  if (diff === 0) return <span className="dl dl--eq" title="Exactly as predicted">Exact</span>;
+
+  const places = Math.abs(diff);
+  const word = places === 1 ? 'place' : 'places';
+  if (diff > 0) {
+    return <span className="dl dl--up" title={`Finished ${places} ${word} higher than predicted`}>{'\u25B2'} {places}</span>;
+  }
+  return <span className="dl dl--down" title={`Finished ${places} ${word} lower than predicted`}>{'\u25BC'} {places}</span>;
 }
 
 function GridRow({ side, pos, d, hover, setHover, predictedRank, highlight }) {
   const linked = hover === d.driverId;
+
+  let finishedNote = '';
+  if (d.finished === false) {
+    finishedNote = 'DNF';
+  } else if (d.actualPosition !== null && d.actualPosition !== undefined) {
+    finishedNote = `finished P${d.actualPosition}`;
+  }
   return (
     <li className={`gr ${linked ? 'is-link' : ''} ${highlight ? 'is-key' : ''}`} style={{ '--tc': teamColor(d.constructorId) }} onMouseEnter={() => setHover(d.driverId)} onMouseLeave={() => setHover(null)}>
       <span className="gr__pos num">P{pos}</span>
       <i className="gr__bar" aria-hidden="true" />
       <span className="gr__who"><b>{d.name}</b><small>{d.constructorName}</small></span>
       <span className="gr__end">
-        {side === 'pred'
-          ? <span className="gr__note num">{d.finished === false ? 'DNF' : d.actualPosition === null ? '' : `finished P${d.actualPosition}`}</span>
-          : <><span className="gr__note num">predicted P{predictedRank}</span><Delta from={predictedRank} to={pos} finished={d.finished} /></>}
+        {side === 'pred' ? (
+          <span className="gr__note num">{finishedNote}</span>
+        ) : (
+          <>
+            <span className="gr__note num">predicted P{predictedRank}</span>
+            <Delta from={predictedRank} to={pos} finished={d.finished} />
+          </>
+        )}
       </span>
     </li>
   );
 }
 
-/** Evaluation summary + the model's predicted grid beside the real classification. */
+// summary of the prediction, with the predicted grid next to the real result
 function GridComparison({ r }) {
   const [hover, setHover] = useState(null);
   const sm = r.summary;
@@ -180,9 +237,24 @@ function GridComparison({ r }) {
     return <p className="cmp__none">The full predicted grid is unavailable for this race, so only the result is shown.</p>;
   }
   const pick = sm.predictedWinner;
-  const pickRow = r.classification.find((c) => c.driverId === pick.driverId);
-  const rankOf = new Map(r.predictedGrid.map((g) => [g.driverId, g.rank]));
-  const finishText = sm.finished === false ? `Did not finish${pickRow && pickRow.status ? ` (${pickRow.status})` : ''}` : `P${sm.finishedPosition}`;
+
+  let pickRow = null;
+  for (let i = 0; i < r.classification.length; i++) {
+    if (r.classification[i].driverId === pick.driverId) pickRow = r.classification[i];
+  }
+
+  // predicted rank of each driver
+  const rankOf = new Map();
+  for (let i = 0; i < r.predictedGrid.length; i++) {
+    rankOf.set(r.predictedGrid[i].driverId, r.predictedGrid[i].rank);
+  }
+
+  let finishText = `P${sm.finishedPosition}`;
+  if (sm.finished === false) {
+    finishText = 'Did not finish';
+    if (pickRow && pickRow.status) finishText += ` (${pickRow.status})`;
+  }
+
   return (
     <div className="cmp">
       <dl className="sum">
@@ -212,7 +284,8 @@ function RaceCard({ r, index, open, active, onToggle, narrow }) {
   const reduce = useReducedMotion();
   const w = r.winner;
   const c = teamColor(w.constructorId);
-  const openW = narrow ? Math.min(window.innerWidth - 48, 560) : Math.min(1080, window.innerWidth - 80);
+  let openW = Math.min(1080, window.innerWidth - 80);
+  if (narrow) openW = Math.min(window.innerWidth - 48, 560);
   return (
     <motion.article
       className={`rc ${open ? 'is-open' : ''} ${active ? 'is-active' : ''}`}
@@ -252,8 +325,22 @@ function RaceCard({ r, index, open, active, onToggle, narrow }) {
   );
 }
 
+// the left padding of the track, so cards can line up with the heading
+function trackPadding(track) {
+  return parseFloat(getComputedStyle(track).paddingLeft) || 0;
+}
+
 function Carousel({ evaluation }) {
-  const races = evaluation && evaluation.races ? [...evaluation.races].filter((r) => r.winner && r.podium.length === 3).sort((a, b) => b.season - a.season || b.round - a.round) : [];
+  // only races with a full podium, newest first
+  const races = [];
+  if (evaluation && evaluation.races) {
+    for (let i = 0; i < evaluation.races.length; i++) {
+      const r = evaluation.races[i];
+      if (r.winner && r.podium.length === 3) races.push(r);
+    }
+    races.sort((a, b) => b.season - a.season || b.round - a.round);
+  }
+
   const track = useRef(null);
   const [openIdx, setOpenIdx] = useState(-1);
   const [active, setActive] = useState(0);
@@ -261,38 +348,82 @@ function Carousel({ evaluation }) {
   const drag = useRef({ down: false, moved: false, x: 0, left: 0 });
 
   useEffect(() => {
-    const on = () => setNarrow(window.innerWidth < 720);
-    on(); window.addEventListener('resize', on);
-    return () => window.removeEventListener('resize', on);
+    function onResize() {
+      setNarrow(window.innerWidth < 720);
+    }
+    onResize();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  const measure = useCallback(() => {
-    const t = track.current; if (!t) return;
-    const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0;
-    let best = 0; let bestD = Infinity;
-    [...t.children].forEach((el, i) => { const dd = Math.abs(el.offsetLeft - pl - t.scrollLeft); if (dd < bestD) { bestD = dd; best = i; } });
+  // find which card is closest to the left edge
+  function measure() {
+    const t = track.current;
+    if (!t) return;
+    const padding = trackPadding(t);
+    let best = 0;
+    let bestDistance = Infinity;
+    for (let i = 0; i < t.children.length; i++) {
+      const distance = Math.abs(t.children[i].offsetLeft - padding - t.scrollLeft);
+      if (distance < bestDistance) {
+        bestDistance = distance;
+        best = i;
+      }
+    }
     setActive(best);
-  }, []);
-  useEffect(() => { measure(); }, [measure, races.length, openIdx]);
+  }
 
-  const go = (dir) => {
-    const t = track.current; if (!t) return;
-    const next = Math.max(0, Math.min(races.length - 1, active + dir));
-    const el = t.children[next]; const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0;
-    t.scrollTo({ left: el.offsetLeft - pl, behavior: 'smooth' });
-  };
+  useEffect(() => {
+    measure();
+  }, [races.length, openIdx]); // eslint-disable-line
 
-  const toggle = (i) => {
+  // arrow buttons
+  function go(direction) {
+    const t = track.current;
+    if (!t) return;
+    const next = Math.max(0, Math.min(races.length - 1, active + direction));
+    t.scrollTo({ left: t.children[next].offsetLeft - trackPadding(t), behavior: 'smooth' });
+  }
+
+  // open or close a card
+  function toggle(i) {
     if (drag.current.moved) return;
     const willOpen = openIdx !== i;
     setOpenIdx(willOpen ? i : -1);
-    if (willOpen) setTimeout(() => { const t = track.current; if (!t) return; const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0; t.scrollTo({ left: t.children[i].offsetLeft - pl, behavior: 'smooth' }); }, 60);
-  };
+    if (willOpen) {
+      setTimeout(() => {
+        const t = track.current;
+        if (!t) return;
+        t.scrollTo({ left: t.children[i].offsetLeft - trackPadding(t), behavior: 'smooth' });
+      }, 60);
+    }
+  }
 
-  // mouse drag to scroll (touch uses native scrolling)
-  const onDown = (e) => { if (e.pointerType !== 'mouse') return; const t = track.current; drag.current = { down: true, moved: false, x: e.clientX, left: t.scrollLeft }; };
-  const onMove = (e) => { const d = drag.current; if (!d.down) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6) { d.moved = true; track.current.classList.add('is-drag'); } if (d.moved) track.current.scrollLeft = d.left - dx; };
-  const onUp = () => { const t = track.current; drag.current.down = false; t && t.classList.remove('is-drag'); setTimeout(() => { drag.current.moved = false; }, 0); };
+  // drag with the mouse to scroll (touch screens scroll by themselves)
+  function onDown(e) {
+    if (e.pointerType !== 'mouse') return;
+    drag.current = { down: true, moved: false, x: e.clientX, left: track.current.scrollLeft };
+  }
+
+  function onMove(e) {
+    const d = drag.current;
+    if (!d.down) return;
+    const dx = e.clientX - d.x;
+    if (Math.abs(dx) > 6) {
+      d.moved = true;
+      track.current.classList.add('is-drag');
+    }
+    if (d.moved) track.current.scrollLeft = d.left - dx;
+  }
+
+  function onUp() {
+    const t = track.current;
+    drag.current.down = false;
+    if (t) t.classList.remove('is-drag');
+    setTimeout(() => {
+      drag.current.moved = false;
+    }, 0);
+  }
 
   return (
     <section className="pd-past" aria-labelledby="pd-past-h">
@@ -320,8 +451,8 @@ function Carousel({ evaluation }) {
   );
 }
 
-/* ------------------------------------------------------------- 3. the model */
-// These notes mirror server/services/predictionService.js. Do not claim a feature that is not there.
+// ---------------------------------------------------------------- 3. how the model works
+// these notes match server/services/predictionService.js
 const MODEL = [
   { t: 'The methodology', body: (
     <>
@@ -374,14 +505,21 @@ function Behind() {
   );
 }
 
-/* --------------------------------------------------------------------- page */
+// ---------------------------------------------------------------- page
 export default function Prediction() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
-  const load = () => {
+
+  function load() {
     setState({ loading: true, error: null, data: null });
-    getNextRace().then((data) => setState({ loading: false, error: null, data })).catch((e) => setState({ loading: false, error: e.message, data: null }));
-  };
-  useEffect(load, []);
+    getNextRace()
+      .then((data) => setState({ loading: false, error: null, data: data }))
+      .catch((err) => setState({ loading: false, error: err.message, data: null }));
+  }
+
+  useEffect(() => {
+    load();
+  }, []);
+
   const d = state.data;
   return (
     <div className="dark pd">

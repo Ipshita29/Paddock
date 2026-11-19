@@ -5,13 +5,10 @@ import { ArrowLeft, ArrowUpRight, ChevronLeft, ChevronRight } from 'lucide-react
 import { Plus, Reveal, Credit } from '../components/Footer.jsx';
 import { f1Stories, STORY_CATEGORIES } from '../data/f1Stories.js';
 
-/* ----------------------------------------------------------------------------
-   THE STORIES (route /history, and /history/:slug for a single article).
-   Every title, subtitle, year, category and article comes from src/data/f1Stories.js.
-   Photographs: only existing, licensed images that genuinely relate to a story are used.
-   Stories without one get a typographic cover, never an unrelated picture.
----------------------------------------------------------------------------- */
-// Existing, properly licensed photographs, keyed for the stories they genuinely relate to (credits from the stored Wikimedia Commons records).
+// THE STORIES (route /history, and /history/:slug for one story).
+// Titles, years, categories and articles come from src/data/f1Stories.js.
+// Photos are real Wikimedia Commons images listed in the tables below.
+// photographs with their licence details
 const PHOTOS = {
   fangio57: { file: "hero-fangio-1957.jpg", wide: true, focus: "50% 62%", alt: "Juan Manuel Fangio in the Maserati 250F at the Nurburgring, 1957", caption: "Juan Manuel Fangio in the Maserati 250F at the Nurburgring, 1957.", credit: { author: "Willy Pragher", license: "CC BY 3.0", licenseUrl: "https://creativecommons.org/licenses/by/3.0", source: "https://commons.wikimedia.org/wiki/File:Fangio_Maserati_250F_Nurburgring_1957.jpg" } },
   fangio: { file: "portrait-fangio.jpg", wide: false, focus: "50% 28%", alt: "Juan Manuel Fangio", caption: "Juan Manuel Fangio.", credit: { author: "Unknown authorUnknown author", license: "Public domain", licenseUrl: "https://commons.wikimedia.org/wiki/File:Juan_Manuel_Fangio_(circa_1952).jpg", source: "https://commons.wikimedia.org/wiki/File:Juan_Manuel_Fangio_(circa_1952).jpg" } },
@@ -51,7 +48,7 @@ const PHOTOS = {
   antonelliMercedes: { file: "antonelli.jpg", wide: true, focus: "50% 50%", alt: "Kimi Antonelli in the Mercedes, 2025 Japanese Grand Prix", caption: "Kimi Antonelli in the Mercedes, 2025 Japanese Grand Prix.", credit: { author: "Liauzh", license: "CC BY-SA 4.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/4.0", source: "https://commons.wikimedia.org/wiki/File:2025_Japan_GP_-_Mercedes_-_Kimi_Antonelli_-_FP2.jpg" } },
 };
 
-// Story slug -> [cover photograph, optional second photograph for the article]. Stories not listed have no suitable photograph yet and use a typographic cover.
+// story slug -> [cover photo, optional second photo for the article]
 const STORY_PHOTOS = {
   "fangio-nurburgring-1957": ["fangio57", "fangio"],
   "moss-hawthorn-1958-sportsmanship": ["mossLotus", "moss"],
@@ -78,44 +75,134 @@ const STORY_PHOTOS = {
 };
 
 
-const SUPPORT = 'Beyond the results. The rivalries, risks, rivalries, triumphs and moments that made Formula 1.';
-const BY_SLUG = new Map(f1Stories.map((s) => [s.slug, s]));
-const photosOf = (story) => (STORY_PHOTOS[story.slug] || []).map((k) => PHOTOS[k]).filter(Boolean);
-const decadePhoto = (year) => { const d = Math.min(2020, Math.max(1950, Math.floor(year / 10) * 10)); return { file: `d${d}.jpg`, wide: true, focus: '50% 50%', alt: `Formula 1 in the ${d}s`, caption: `Formula 1 in the ${d}s.`, credit: { author: 'Wikimedia Commons', license: 'see source' } }; };
-const coverOf = (story) => photosOf(story)[0] || decadePhoto(story.year);
-/** Every image to try for a story, in order: its own photographs, then a real photograph of its era. */
-const photoChain = (story) => [...photosOf(story), decadePhoto(story.year)];
+const BY_SLUG = new Map();
+for (let i = 0; i < f1Stories.length; i++) {
+  BY_SLUG.set(f1Stories[i].slug, f1Stories[i]);
+}
 
-/** A story photograph that steps to the next real photograph if one fails to load, so a poster is never empty. */
+// the photos listed for a story
+function photosOf(story) {
+  const keys = STORY_PHOTOS[story.slug] || [];
+  const photos = [];
+  for (let i = 0; i < keys.length; i++) {
+    if (PHOTOS[keys[i]]) photos.push(PHOTOS[keys[i]]);
+  }
+  return photos;
+}
+
+// a real photograph of the same decade, used when a story has no photo of its own
+function decadePhoto(year) {
+  const decade = Math.min(2020, Math.max(1950, Math.floor(year / 10) * 10));
+  return {
+    file: `d${decade}.jpg`,
+    wide: true,
+    focus: '50% 50%',
+    alt: `Formula 1 in the ${decade}s`,
+    caption: `Formula 1 in the ${decade}s.`,
+    credit: { author: 'Wikimedia Commons', license: 'see source' },
+  };
+}
+
+function coverOf(story) {
+  const photos = photosOf(story);
+  if (photos.length > 0) return photos[0];
+  return decadePhoto(story.year);
+}
+
+// the story's own photos first, then the decade photo
+function photoChain(story) {
+  return [...photosOf(story), decadePhoto(story.year)];
+}
+
+// a story photo that moves on to the next photo if it fails to load, so a card is never empty
 function StoryImg({ story, className, style }) {
   const chain = useMemo(() => photoChain(story), [story]);
-  const [i, setI] = useState(0);
-  const p = chain[Math.min(i, chain.length - 1)];
-  return <img src={`/images/${p.file}`} alt="" loading="lazy" decoding="async" className={className} style={{ ...style, objectPosition: p.focus || '50% 50%' }} onError={() => setI((n) => (n < chain.length - 1 ? n + 1 : n))} />;
-}
-const paragraphs = (story) => story.story.split(/\n\n/).map((p) => p.trim()).filter(Boolean);
+  const [index, setIndex] = useState(0);
+  const photo = chain[Math.min(index, chain.length - 1)];
 
-/** A featured story for the day: deterministic, chosen from stories that have a wide, cinematic photograph. */
+  function onError() {
+    if (index < chain.length - 1) setIndex(index + 1);
+  }
+
+  return (
+    <img
+      src={`/images/${photo.file}`}
+      alt=""
+      loading="lazy"
+      decoding="async"
+      className={className}
+      style={{ ...style, objectPosition: photo.focus || '50% 50%' }}
+      onError={onError}
+    />
+  );
+}
+
+// the paragraphs of a story
+function paragraphs(story) {
+  const parts = story.story.split(/\n\n/);
+  const result = [];
+  for (let i = 0; i < parts.length; i++) {
+    const text = parts[i].trim();
+    if (text !== '') result.push(text);
+  }
+  return result;
+}
+
+// the story of the day: the same one all day, chosen from stories with a wide cover photo
 function featuredFor(date = new Date()) {
-  const pool = f1Stories.filter((s) => { const c = coverOf(s); return c && c.wide; });
+  const pool = [];
+  for (let i = 0; i < f1Stories.length; i++) {
+    const photo = coverOf(f1Stories[i]);
+    if (photo && photo.wide) pool.push(f1Stories[i]);
+  }
   return pool[Math.floor(date.getTime() / 86400000) % pool.length];
 }
 
-/** Stories related by the people involved, the category and the period. */
+// stories that share people, category or time period with this one
 function relatedTo(story, limit = 3) {
-  const names = new Set(story.peopleInvolved);
-  return f1Stories.filter((s) => s.slug !== story.slug)
-    .map((s) => ({ s, score: s.peopleInvolved.filter((n) => names.has(n)).length * 3 + (s.category === story.category ? 2 : 0) + (Math.abs(s.year - story.year) <= 6 ? 1 : 0) }))
-    .sort((a, b) => b.score - a.score || Math.abs(a.s.year - story.year) - Math.abs(b.s.year - story.year))
-    .slice(0, limit).map((x) => x.s);
+  const scored = [];
+  for (let i = 0; i < f1Stories.length; i++) {
+    const other = f1Stories[i];
+    if (other.slug === story.slug) continue;
+
+    let score = 0;
+    for (let j = 0; j < other.peopleInvolved.length; j++) {
+      if (story.peopleInvolved.includes(other.peopleInvolved[j])) score += 3;
+    }
+    if (other.category === story.category) score += 2;
+    if (Math.abs(other.year - story.year) <= 6) score += 1;
+    scored.push({ story: other, score: score });
+  }
+
+  scored.sort((a, b) => {
+    if (b.score !== a.score) return b.score - a.score;
+    return Math.abs(a.story.year - story.year) - Math.abs(b.story.year - story.year);
+  });
+
+  const result = [];
+  for (let i = 0; i < limit && i < scored.length; i++) result.push(scored[i].story);
+  return result;
 }
 
-/** The picture for a story: its photograph, or a typographic cover built from its year and category. */
+// the picture for a story: its photo, or its year and category if there is no photo
 function Cover({ story, photo, className = '' }) {
   const [failed, setFailed] = useState(false);
+
   if (photo && !failed) {
-    return <div className={`cov ${className}`}><img src={`/images/${photo.file}`} alt={photo.alt} loading="lazy" decoding="async" style={{ objectPosition: photo.focus }} onError={() => setFailed(true)} /></div>;
+    return (
+      <div className={`cov ${className}`}>
+        <img
+          src={`/images/${photo.file}`}
+          alt={photo.alt}
+          loading="lazy"
+          decoding="async"
+          style={{ objectPosition: photo.focus }}
+          onError={() => setFailed(true)}
+        />
+      </div>
+    );
   }
+
   return (
     <div className={`cov cov--type ${className}`} role="img" aria-label={`${story.year}, ${story.category}`}>
       <span className="cov__year num">{story.year}</span>
@@ -126,183 +213,193 @@ function Cover({ story, photo, className = '' }) {
 
 const meta = (s) => <span className="meta"><i />{s.year}<em>{s.category}</em></span>;
 
-/* ------------------------------------------------------------------ timed card opening browser */
-/** Poster widths for the deck: resting, being hovered (timed opening), and active. Follows the viewport. */
-function usePosterWidths() {
-  const calc = () => {
-    const vw = typeof window === 'undefined' ? 1440 : window.innerWidth;
-    const rest = vw <= 768 ? 210 : vw <= 1024 ? 240 : Math.round(Math.min(290, Math.max(250, vw * 0.195)));
-    return { rest, hover: Math.round(rest * 1.07), active: Math.round(rest * 1.2) };
-  };
-  const [w, setW] = useState(calc);
-  useEffect(() => { const on = () => setW(calc()); window.addEventListener('resize', on); return () => window.removeEventListener('resize', on); }, []);
-  return w;
+// ---------------------------------------------------------------- stories page (Timed Card Opening)
+
+// widths of a card when resting, hovered and active, based on the screen width
+function posterWidths() {
+  const screenWidth = typeof window === 'undefined' ? 1440 : window.innerWidth;
+  let rest = Math.round(Math.min(290, Math.max(250, screenWidth * 0.195)));
+  if (screenWidth <= 768) {
+    rest = 210;
+  } else if (screenWidth <= 1024) {
+    rest = 240;
+  }
+  return { rest: rest, hover: Math.round(rest * 1.07), active: Math.round(rest * 1.2) };
+}
+
+// load an image early so the background changes without delay
+function preload(photo) {
+  if (photo && photo.file) {
+    const img = new Image();
+    img.src = `/images/${photo.file}`;
+  }
 }
 
 function StoriesBrowser() {
   const [params, setParams] = useSearchParams();
-  const activeCategory = STORY_CATEGORIES.includes(params.get('c')) ? params.get('c') : 'all';
 
+  let activeCategory = 'all';
+  if (STORY_CATEGORIES.includes(params.get('c'))) activeCategory = params.get('c');
+
+  // stories in the chosen category
   const filteredStories = useMemo(() => {
-    return activeCategory === 'all'
-      ? f1Stories
-      : f1Stories.filter((s) => s.category === activeCategory);
+    if (activeCategory === 'all') return f1Stories;
+    const list = [];
+    for (let i = 0; i < f1Stories.length; i++) {
+      if (f1Stories[i].category === activeCategory) list.push(f1Stories[i]);
+    }
+    return list;
   }, [activeCategory]);
 
   const featured = useMemo(() => featuredFor(), []);
 
-  // Initialize active story to featured story (if present in current category) or first story
+  // the story that starts as active: the featured story if it is in this category, otherwise the first story
   const [activeSlug, setActiveSlug] = useState(() => {
     if (activeCategory === 'all') return featured.slug;
-    const match = filteredStories.find((s) => s.slug === featured.slug);
-    return match ? match.slug : (filteredStories[0]?.slug || f1Stories[0].slug);
+    for (let i = 0; i < filteredStories.length; i++) {
+      if (filteredStories[i].slug === featured.slug) return featured.slug;
+    }
+    if (filteredStories.length > 0) return filteredStories[0].slug;
+    return f1Stories[0].slug;
   });
 
-  const activeStory = useMemo(() => {
-    return BY_SLUG.get(activeSlug) || filteredStories[0] || f1Stories[0];
-  }, [activeSlug, filteredStories]);
-
-  const activePhoto = useMemo(() => coverOf(activeStory), [activeStory]);
+  const activeStory = BY_SLUG.get(activeSlug) || filteredStories[0] || f1Stories[0];
+  const activePhoto = coverOf(activeStory);
 
   const [hoveredSlug, setHoveredSlug] = useState(null);
   const [timingSlug, setTimingSlug] = useState(null);
+  const [widths, setWidths] = useState(posterWidths());
   const timerRef = useRef(null);
   const deckRef = useRef(null);
   const cardRefs = useRef({});
-  const widths = usePosterWidths();
   const reduceMotion = useReducedMotion();
 
-  // Ensure active story stays valid within filtered category
+  // keep the card widths right when the window is resized
   useEffect(() => {
-    if (!filteredStories.some((s) => s.slug === activeSlug)) {
-      if (filteredStories.length > 0) {
-        setActiveSlug(filteredStories[0].slug);
-      }
+    function onResize() {
+      setWidths(posterWidths());
     }
-  }, [filteredStories, activeSlug]);
-
-  // Preload active image on load / change
-  useEffect(() => {
-    if (activePhoto?.file) {
-      const img = new Image();
-      img.src = `/images/${activePhoto.file}`;
-    }
-  }, [activePhoto]);
-
-  // Preload initial set of images for immediate responsiveness
-  useEffect(() => {
-    f1Stories.slice(0, 5).forEach((s) => {
-      const p = coverOf(s);
-      if (p?.file) {
-        const img = new Image();
-        img.src = `/images/${p.file}`;
-      }
-    });
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
   }, []);
 
-  // Smoothly scroll active card into view
+  // if the active story is not in the chosen category, use the first one
   useEffect(() => {
-    if (activeSlug && cardRefs.current[activeSlug]) {
-      const el = cardRefs.current[activeSlug];
-      el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
+    let found = false;
+    for (let i = 0; i < filteredStories.length; i++) {
+      if (filteredStories[i].slug === activeSlug) found = true;
     }
+    if (!found && filteredStories.length > 0) setActiveSlug(filteredStories[0].slug);
+  }, [filteredStories, activeSlug]);
+
+  // load the active photo, and the first five covers, early
+  useEffect(() => {
+    preload(activePhoto);
+  }, [activePhoto]);
+
+  useEffect(() => {
+    for (let i = 0; i < 5; i++) preload(coverOf(f1Stories[i]));
+  }, []);
+
+  // scroll the active card into view
+  useEffect(() => {
+    const el = cardRefs.current[activeSlug];
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'nearest' });
   }, [activeSlug]);
 
-  // Keyboard navigation: ArrowLeft and ArrowRight to navigate through story deck
+  // left and right arrow keys move through the stories
   useEffect(() => {
-    const onKey = (e) => {
+    function onKey(e) {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-      if (e.key === 'ArrowRight') {
-        e.preventDefault();
-        const idx = filteredStories.findIndex((s) => s.slug === activeSlug);
-        if (idx !== -1 && idx < filteredStories.length - 1) {
-          setActiveSlug(filteredStories[idx + 1].slug);
-        }
-      } else if (e.key === 'ArrowLeft') {
-        e.preventDefault();
-        const idx = filteredStories.findIndex((s) => s.slug === activeSlug);
-        if (idx > 0) {
-          setActiveSlug(filteredStories[idx - 1].slug);
-        }
+      if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return;
+      e.preventDefault();
+
+      let index = -1;
+      for (let i = 0; i < filteredStories.length; i++) {
+        if (filteredStories[i].slug === activeSlug) index = i;
       }
-    };
+      if (e.key === 'ArrowRight' && index !== -1 && index < filteredStories.length - 1) {
+        setActiveSlug(filteredStories[index + 1].slug);
+      }
+      if (e.key === 'ArrowLeft' && index > 0) {
+        setActiveSlug(filteredStories[index - 1].slug);
+      }
+    }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [filteredStories, activeSlug]);
 
-  // Clean up hover timer on unmount
+  // stop the hover timer when leaving the page
   useEffect(() => {
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
     };
   }, []);
 
-  // Timed Card Opening hover handlers: 420ms delay
-  const handleCardMouseEnter = (story) => {
-    if (story.slug === activeSlug) return;
-
-    // Preload candidate background image right away so background switch is instantaneous
-    const p = coverOf(story);
-    if (p?.file) {
-      const img = new Image();
-      img.src = `/images/${p.file}`;
-    }
-
+  function stopTimer() {
     if (timerRef.current) {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
+  }
 
+  // Timed Card Opening: a card becomes active after the mouse stays on it for 420ms
+  function handleCardMouseEnter(story) {
+    if (story.slug === activeSlug) return;
+
+    preload(coverOf(story));
+    stopTimer();
     setHoveredSlug(story.slug);
     setTimingSlug(story.slug);
 
-    // 420ms activation delay (within 350-500ms range)
     timerRef.current = setTimeout(() => {
       setActiveSlug(story.slug);
       setTimingSlug(null);
       setHoveredSlug(null);
       timerRef.current = null;
     }, 420);
-  };
+  }
 
-  const handleCardMouseLeave = (story) => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+  function handleCardMouseLeave(story) {
+    stopTimer();
     if (timingSlug === story.slug) setTimingSlug(null);
     if (hoveredSlug === story.slug) setHoveredSlug(null);
-  };
+  }
 
-  // Click activates the card immediately and opens its article. On touch screens (no hover) the first tap
-  // only activates the card, so it can be previewed; tapping the active card opens it.
-  const handleCardClick = (e, story) => {
-    if (timerRef.current) {
-      clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
+  // A click activates the card at once and opens the story.
+  // On touch screens the first tap only activates the card, and a second tap opens it.
+  function handleCardClick(e, story) {
+    stopTimer();
     setTimingSlug(null);
     setHoveredSlug(null);
-    const touchOnly = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none)').matches;
-    if (touchOnly && story.slug !== activeSlug) e.preventDefault();
+
+    const noHover = typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(hover: none)').matches;
+    if (noHover && story.slug !== activeSlug) e.preventDefault();
     setActiveSlug(story.slug);
-  };
+  }
 
-  const chooseCategory = (cat) => {
+  function chooseCategory(category) {
     const next = new URLSearchParams(params);
-    if (cat === 'all') next.delete('c');
-    else next.set('c', cat);
-    setParams(next, { replace: true });
-  };
-
-  const scrollDeck = (dir) => {
-    if (deckRef.current) {
-      const delta = deckRef.current.clientWidth * 0.65;
-      deckRef.current.scrollBy({ left: dir * delta, behavior: 'smooth' });
+    if (category === 'all') {
+      next.delete('c');
+    } else {
+      next.set('c', category);
     }
-  };
+    setParams(next, { replace: true });
+  }
 
-  const activeIndex = filteredStories.findIndex((s) => s.slug === activeSlug);
+  // left and right buttons above the cards
+  function scrollDeck(direction) {
+    if (deckRef.current) {
+      const distance = deckRef.current.clientWidth * 0.65;
+      deckRef.current.scrollBy({ left: direction * distance, behavior: 'smooth' });
+    }
+  }
+
+  let activeIndex = -1;
+  for (let i = 0; i < filteredStories.length; i++) {
+    if (filteredStories[i].slug === activeSlug) activeIndex = i;
+  }
 
   return (
     <div className="stories-browser dark">

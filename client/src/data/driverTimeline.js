@@ -1,31 +1,51 @@
-/**
- * Builds a unified chronological milestone timeline for any Formula 1 driver.
- * Merges karting pathway, junior series, F1 debut, maiden victory,
- * team transitions, world championships, and landmark highlights.
- */
+// Builds a timeline of milestones for any driver: karting and junior years, F1 debut,
+// first win, world titles and other highlights.
+
+const ORDINALS = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'];
+
+// lower number comes first when two milestones are in the same year
+const CATEGORY_ORDER = {
+  KARTING: 1,
+  'JUNIOR ASCENT': 2,
+  'F1 DEBUT': 3,
+  'TEAM MOVE': 4,
+  'FIRST WIN': 5,
+  'LANDMARK WIN': 6,
+  MILESTONE: 7,
+  'WORLD TITLE': 8,
+};
+
+// categories that are marked as important on the timeline
+const IMPORTANT = ['F1 DEBUT', 'FIRST WIN', 'WORLD TITLE', 'LANDMARK WIN'];
+
+function orderOf(category) {
+  return CATEGORY_ORDER[category] || 5;
+}
 
 export function buildDriverMilestones(driver) {
   if (!driver) return [];
 
   const milestones = [];
-
   const hasDebut = Boolean(driver.debut && driver.debut.season);
   const hasFirstWin = Boolean(driver.firstWin && driver.firstWin.season);
+  const titles = driver.stats && Array.isArray(driver.stats.titles) ? driver.stats.titles : [];
 
-  // 1. Junior & Karting Pathway
+  // 1. karting and junior series
   if (Array.isArray(driver.pathway)) {
-    driver.pathway.forEach(([yr, desc]) => {
-      const isKarting = /kart|cadet|bambino/i.test(desc);
+    for (let i = 0; i < driver.pathway.length; i++) {
+      const year = driver.pathway[i][0];
+      const description = driver.pathway[i][1];
+      const isKarting = /kart|cadet|bambino/i.test(description);
       milestones.push({
-        year: Number(yr),
+        year: Number(year),
         category: isKarting ? 'KARTING' : 'JUNIOR ASCENT',
         title: isKarting ? 'Karting Foundations' : 'Junior Series',
-        text: desc,
+        text: description,
       });
-    });
+    }
   }
 
-  // 2. F1 Debut
+  // 2. F1 debut
   if (hasDebut) {
     milestones.push({
       year: Number(driver.debut.season),
@@ -35,7 +55,7 @@ export function buildDriverMilestones(driver) {
     });
   }
 
-  // 3. First Grand Prix Victory
+  // 3. first win
   if (hasFirstWin) {
     milestones.push({
       year: Number(driver.firstWin.season),
@@ -45,89 +65,104 @@ export function buildDriverMilestones(driver) {
     });
   }
 
-  // 4. World Championships
-  if (driver.stats && Array.isArray(driver.stats.titles)) {
-    driver.stats.titles.forEach((yr, idx) => {
-      const ordinal = ['First', 'Second', 'Third', 'Fourth', 'Fifth', 'Sixth', 'Seventh', 'Eighth'][idx] || `${idx + 1}th`;
-      milestones.push({
-        year: Number(yr),
-        category: 'WORLD TITLE',
-        title: `${ordinal} World Championship`,
-        text: `Crowns FIA Formula 1 World Drivers' Champion.`,
-      });
+  // 4. world championships
+  for (let i = 0; i < titles.length; i++) {
+    const ordinal = ORDINALS[i] || `${i + 1}th`;
+    milestones.push({
+      year: Number(titles[i]),
+      category: 'WORLD TITLE',
+      title: `${ordinal} World Championship`,
+      text: "Crowns FIA Formula 1 World Drivers' Champion.",
     });
   }
 
-  // 5. Curated / Generated Highlights (filter out near-duplicates of debut / first win)
+  // 5. highlights (skipped if they repeat the debut, first win or title)
   if (Array.isArray(driver.highlights)) {
-    driver.highlights.forEach((h) => {
-      const hYear = Number(h.year);
-      const isDebutDuplicate = hasDebut && hYear === Number(driver.debut.season) && /debut/i.test(h.text);
-      const isFirstWinDuplicate = hasFirstWin && hYear === Number(driver.firstWin.season) && /first win|maiden win/i.test(h.text);
-      const isTitleDuplicate = driver.stats?.titles?.includes(hYear) && /title|world champion/i.test(h.text);
+    for (let i = 0; i < driver.highlights.length; i++) {
+      const h = driver.highlights[i];
+      const year = Number(h.year);
 
-      if (isDebutDuplicate || isFirstWinDuplicate || isTitleDuplicate) {
-        // If the highlight provides richer detail (e.g. "and wins at Spa and Monza" or "finishes second"), update the existing entry text
-        const existing = milestones.find((m) => m.year === hYear && (m.category === 'F1 DEBUT' || m.category === 'FIRST WIN' || m.category === 'WORLD TITLE'));
-        if (existing && h.text.length > existing.text.length) {
-          existing.text = h.text;
+      const repeatsDebut = hasDebut && year === Number(driver.debut.season) && /debut/i.test(h.text);
+      const repeatsFirstWin = hasFirstWin && year === Number(driver.firstWin.season) && /first win|maiden win/i.test(h.text);
+      const repeatsTitle = titles.includes(year) && /title|world champion/i.test(h.text);
+
+      if (repeatsDebut || repeatsFirstWin || repeatsTitle) {
+        // if the highlight has more detail, use its text for the existing milestone
+        for (let j = 0; j < milestones.length; j++) {
+          const m = milestones[j];
+          const isSpecial = m.category === 'F1 DEBUT' || m.category === 'FIRST WIN' || m.category === 'WORLD TITLE';
+          if (m.year === year && isSpecial) {
+            if (h.text.length > m.text.length) m.text = h.text;
+            break;
+          }
         }
-        return;
+        continue;
       }
 
-      let cat = 'MILESTONE';
+      let category = 'MILESTONE';
       let title = 'Career Landmark';
       if (/monaco|silverstone|spa|monza|brazil|suzuka/i.test(h.text) && /win/i.test(h.text)) {
-        cat = 'LANDMARK WIN';
+        category = 'LANDMARK WIN';
         title = 'Landmark Victory';
       } else if (/ferrari|mercedes|mclaren|red bull|williams|aston martin/i.test(h.text) && /joins|moves|signed/i.test(h.text)) {
-        cat = 'TEAM MOVE';
+        category = 'TEAM MOVE';
         title = 'Team Transition';
       }
-
-      milestones.push({
-        year: hYear,
-        category: cat,
-        title,
-        text: h.text,
-      });
-    });
-  }
-
-  // Deduplicate by year + text
-  const unique = [];
-  const seen = new Set();
-  for (const m of milestones) {
-    const key = `${m.year}:${m.text.toLowerCase().trim()}`;
-    if (!seen.has(key)) {
-      seen.add(key);
-      unique.push(m);
+      milestones.push({ year: year, category: category, title: title, text: h.text });
     }
   }
 
-  const catPriority = {
-    KARTING: 1,
-    'JUNIOR ASCENT': 2,
-    'F1 DEBUT': 3,
-    'TEAM MOVE': 4,
-    'FIRST WIN': 5,
-    'LANDMARK WIN': 6,
-    MILESTONE: 7,
-    'WORLD TITLE': 8,
-  };
+  // remove milestones with the same year and text
+  const unique = [];
+  const seen = [];
+  for (let i = 0; i < milestones.length; i++) {
+    const key = `${milestones[i].year}:${milestones[i].text.toLowerCase().trim()}`;
+    if (!seen.includes(key)) {
+      seen.push(key);
+      unique.push(milestones[i]);
+    }
+  }
 
   unique.sort((a, b) => {
     if (a.year !== b.year) return a.year - b.year;
-    return (catPriority[a.category] || 5) - (catPriority[b.category] || 5);
+    return orderOf(a.category) - orderOf(b.category);
   });
 
-  // One card per year: the most significant item leads, and a second sentence from the same year is appended.
-  const IMPORTANT = new Set(['F1 DEBUT', 'FIRST WIN', 'WORLD TITLE', 'LANDMARK WIN']);
+  // group by year
   const byYear = new Map();
-  unique.forEach((m) => { if (!byYear.has(m.year)) byYear.set(m.year, []); byYear.get(m.year).push(m); });
-  return [...byYear.entries()].sort((a, b) => a[0] - b[0]).map(([year, items]) => {
-    const lead = [...items].sort((a, b) => (catPriority[b.category] || 5) - (catPriority[a.category] || 5))[0];
-    const extra = items.filter((m) => m !== lead).map((m) => m.text).slice(0, 1);
-    return { year, category: lead.category, title: lead.title, text: lead.text, detail: extra.join(' '), important: items.some((m) => IMPORTANT.has(m.category)) };
-  });
+  for (let i = 0; i < unique.length; i++) {
+    const year = unique[i].year;
+    if (!byYear.has(year)) byYear.set(year, []);
+    byYear.get(year).push(unique[i]);
+  }
+
+  const years = [...byYear.keys()].sort((a, b) => a - b);
+
+  // one card per year: the most important milestone leads, and one more sentence from that year is added
+  const result = [];
+  for (let i = 0; i < years.length; i++) {
+    const items = byYear.get(years[i]);
+
+    let lead = items[0];
+    for (let j = 1; j < items.length; j++) {
+      if (orderOf(items[j].category) > orderOf(lead.category)) lead = items[j];
+    }
+
+    let detail = '';
+    let important = false;
+    for (let j = 0; j < items.length; j++) {
+      if (items[j] !== lead && detail === '') detail = items[j].text;
+      if (IMPORTANT.includes(items[j].category)) important = true;
+    }
+
+    result.push({
+      year: years[i],
+      category: lead.category,
+      title: lead.title,
+      text: lead.text,
+      detail: detail,
+      important: important,
+    });
+  }
+  return result;
 }

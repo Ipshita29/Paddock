@@ -7,13 +7,13 @@ import { getSeasons, getPeople, getNextRace } from '../services/api.js';
 import { knowMoreInfo } from '../data/knowMoreInfo.js';
 
 const WIKI = 'https://commons.wikimedia.org/wiki/File:';
-// Photographs used by static parts of the page, with their licence details.
+// photos used on this page, with their licence details
 const IMG = {
   lauda: { file: 'lauda.jpg', alt: 'Niki Lauda in the Ferrari 312T2, 31 July 1976', focus: '55% 58%', credit: { author: 'Lothar Spurzem', license: 'CC BY-SA 2.0 de', licenseUrl: 'https://creativecommons.org/licenses/by-sa/2.0/de/deed.en', source: `${WIKI}LaudaNiki19760731Ferrari312T2.jpg` } },
   senna: { file: 'portrait-senna.jpg', alt: 'Ayrton Senna in his McLaren race suit', focus: '33% 30%', credit: { author: 'Instituto Ayrton Senna', license: 'CC BY 2.0', licenseUrl: 'https://creativecommons.org/licenses/by/2.0', source: 'https://commons.wikimedia.org/wiki/File:Ayrton_Senna_9.jpg' } },
   next: { file: 'verstappen-2026.jpg', alt: 'Max Verstappen in the Red Bull, 2026 Chinese Grand Prix qualifying', credit: { author: 'Liauzh', license: 'CC BY 4.0', licenseUrl: 'https://creativecommons.org/licenses/by/4.0', source: `${WIKI}2026_Chinese_GP_-_Red_Bull_-_Max_Verstappen_-_Qualifying.jpg` } },
 };
-const FANCODE_F1 = 'https://www.fancode.com/formula1'; // FanCode's official Formula 1 page (verified)
+const FANCODE_F1 = 'https://www.fancode.com/formula1';
 
 const HERO_CREDIT = { author: 'Willy Pragher', license: 'CC BY 3.0', licenseUrl: 'https://creativecommons.org/licenses/by/3.0', source: `${WIKI}Fangio_Maserati_250F_Nurburgring_1957.jpg` };
 
@@ -27,28 +27,38 @@ const SERVICES = [
   { to: '/prediction', title: 'The Prediction', text: 'A calibrated estimate of who wins the next Grand Prix, with its full track record in the open.', chips: ['Qualifying', 'Recent form', 'Circuit record', 'Backtest', 'Calibrated'], image: { src: '/images/prediction.png', alt: 'Overhead view of two Formula 1 cars on a street circuit', focus: '50% 55%' } },
 ];
 
-function useLoad(fn) {
-  const [s, setS] = useState({ data: null, error: null, loading: true });
-  useEffect(() => { let live = true; fn().then((d) => live && setS({ data: d, error: null, loading: false })).catch((e) => live && setS({ data: null, error: e.message, loading: false })); return () => { live = false; }; }, []); // eslint-disable-line
-  return s;
-}
-
-/** Counts up to `value` once, the first time it scrolls into view. Static for reduced-motion users. */
+// counts up to value the first time it scrolls into view
 function CountUp({ value }) {
   const ref = useRef(null);
   const inView = useInView(ref, { once: true, margin: '-12% 0px' });
   const reduce = useReducedMotion();
   const [shown, setShown] = useState(0);
+
   useEffect(() => {
     if (!inView || !value) return undefined;
-    if (reduce) { setShown(value); return undefined; }
-    const controls = animate(0, value, { duration: 1.2, ease: [0.22, 1, 0.36, 1], onUpdate: (v) => setShown(Math.round(v)) });
+    if (reduce) {
+      setShown(value);
+      return undefined;
+    }
+    const controls = animate(0, value, {
+      duration: 1.2,
+      ease: [0.22, 1, 0.36, 1],
+      onUpdate: (v) => setShown(Math.round(v)),
+    });
     return () => controls.stop();
   }, [inView, value, reduce]);
-  return <span ref={ref} className="num" aria-label={value ? String(value) : undefined}>{value ? (inView ? shown : 0) : '\u2014'}</span>;
+
+  let text = '\u2014';
+  if (value) text = inView ? shown : 0;
+
+  return (
+    <span ref={ref} className="num" aria-label={value ? String(value) : undefined}>
+      {text}
+    </span>
+  );
 }
 
-/** One compact editorial strip instead of three stat cards. Values come from the existing API data. */
+// one strip with three numbers
 function NumbersStrip({ stats, error }) {
   return (
     <section className="nums dark" aria-label="PADDOCK in numbers">
@@ -69,46 +79,83 @@ function NumbersStrip({ stats, error }) {
   );
 }
 
-/* ---------------------------------------------------------------- term of the day */
-// Every glossary entry, in a stable order that does not depend on object key order.
-const TERMS = Object.values(knowMoreInfo).sort((a, b) => a.slug.localeCompare(b.slug));
-const TERM_BY_SLUG = new Map(TERMS.map((t) => [t.slug, t]));
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+// ---------------------------------------------------------------- term of the day
 
-/**
- * Deterministic daily pick: the same term for everyone on a given UTC date, a new one each day.
- * Stepping through the list by a stride coprime with its length visits every term once before any repeats,
- * and keeps neighbouring days from showing alphabetically adjacent terms. No randomness, no backend.
- */
-function termForDay(date = new Date()) {
-  const n = TERMS.length;
-  const day = Math.floor(date.getTime() / 86400000);
-  let stride = Math.max(1, Math.round(n * 0.618));
-  while (gcd(stride, n) !== 1) stride += 1;
-  return TERMS[(day * stride) % n];
+// every glossary entry, sorted by slug so the order never changes
+const TERMS = Object.values(knowMoreInfo);
+TERMS.sort((a, b) => a.slug.localeCompare(b.slug));
+
+const TERM_BY_SLUG = new Map();
+for (let i = 0; i < TERMS.length; i++) {
+  TERM_BY_SLUG.set(TERMS[i].slug, TERMS[i]);
 }
 
-/** A short, complete description. Some entries carry a description cut off with an ellipsis; use their first full sentence instead. */
-function termBlurb(t) {
-  const short = (t.shortDescription || '').trim();
-  if (short && !/(\u2026|\.\.\.)$/.test(short)) return short;
-  const meaning = (t.meaning || '').trim();
-  const first = meaning.match(/^.*?[.!?](?=\s|$)/);
-  return first ? first[0] : meaning || short.replace(/(\u2026|\.\.\.)$/, '');
+// greatest common divisor
+function gcd(a, b) {
+  while (b !== 0) {
+    const rest = a % b;
+    a = b;
+    b = rest;
+  }
+  return a;
+}
+
+/*
+  Picks one term for each day. Everyone sees the same term on the same (UTC) date.
+  The step size shares no factor with the list length, so every term is shown
+  once before any term repeats.
+*/
+function termForDay(date = new Date()) {
+  const count = TERMS.length;
+  const day = Math.floor(date.getTime() / 86400000);
+  let step = Math.max(1, Math.round(count * 0.618));
+  while (gcd(step, count) !== 1) {
+    step++;
+  }
+  return TERMS[(day * step) % count];
+}
+
+// a short, complete description
+// some entries have a description cut off with "...", so then the first full sentence of the meaning is used
+function termBlurb(term) {
+  const short = (term.shortDescription || '').trim();
+  const isCutOff = /(\u2026|\.\.\.)$/.test(short);
+  if (short && !isCutOff) return short;
+
+  const meaning = (term.meaning || '').trim();
+  const firstSentence = meaning.match(/^.*?[.!?](?=\s|$)/);
+  if (firstSentence) return firstSentence[0];
+  if (meaning) return meaning;
+  return short.replace(/(\u2026|\.\.\.)$/, '');
 }
 
 const READ = [['meaning', 'What it means'], ['whyItMatters', 'Why it matters'], ['example', 'A real F1 example'], ['beginnerTip', 'Beginner tip'], ['funFact', 'Fun fact']];
 
 const RADIO_KEY = 'paddock:radio:dismissed';
-const todayKey = () => new Date().toISOString().slice(0, 10); // UTC date, the same one that selects the term
-const dismissedToday = () => { try { return window.localStorage.getItem(RADIO_KEY) === todayKey(); } catch (_) { return false; } };
-const rememberDismissal = () => { try { window.localStorage.setItem(RADIO_KEY, todayKey()); } catch (_) { /* private mode: it simply returns next visit */ } };
 
-/**
- * "PADDOCK Radio": the word of the day as a small team-radio style transmission in the bottom-right corner.
- * It is fixed-position, so it never takes space in the page. It appears once, a moment after the page loads,
- * and once dismissed it stays away until the next day's term. "Learn more" opens the full entry in the popup.
- */
+// today's date as text (UTC), the same date that picks the term
+function todayKey() {
+  return new Date().toISOString().slice(0, 10);
+}
+
+function dismissedToday() {
+  try {
+    return window.localStorage.getItem(RADIO_KEY) === todayKey();
+  } catch (err) {
+    return false;
+  }
+}
+
+function rememberDismissal() {
+  try {
+    window.localStorage.setItem(RADIO_KEY, todayKey());
+  } catch (err) {
+    // private mode: the popup just comes back next visit
+  }
+}
+
+// "PADDOCK Radio": the word of the day as a small popup in the bottom-right corner
+// it shows once after the page loads, and stays away for the rest of the day once closed
 function RadioPopup() {
   const reduce = useReducedMotion();
   const [today] = useState(() => termForDay());
@@ -118,15 +165,38 @@ function RadioPopup() {
 
   useEffect(() => {
     if (dismissedToday()) return undefined;
-    const t = setTimeout(() => setVisible(true), reduce ? 400 : 2400);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setVisible(true), reduce ? 400 : 2400);
+    return () => clearTimeout(timer);
   }, [reduce]);
 
   const view = TERM_BY_SLUG.get(slug) || today;
-  const related = (view.relatedTerms || []).map((r) => TERM_BY_SLUG.get(r)).filter(Boolean);
-  const meta = [today.category, today.difficulty].filter(Boolean).join(' \u00B7 ');
-  const close = () => { setVisible(false); rememberDismissal(); };
-  const learn = () => { setOpen((o) => !o); setSlug(today.slug); };
+
+  const related = [];
+  const relatedSlugs = view.relatedTerms || [];
+  for (let i = 0; i < relatedSlugs.length; i++) {
+    const term = TERM_BY_SLUG.get(relatedSlugs[i]);
+    if (term) related.push(term);
+  }
+
+  const metaParts = [];
+  if (today.category) metaParts.push(today.category);
+  if (today.difficulty) metaParts.push(today.difficulty);
+  const meta = metaParts.join(' \u00B7 ');
+
+  const readItems = [];
+  for (let i = 0; i < READ.length; i++) {
+    if (view[READ[i][0]]) readItems.push(READ[i]);
+  }
+
+  function close() {
+    setVisible(false);
+    rememberDismissal();
+  }
+
+  function learn() {
+    setOpen(!open);
+    setSlug(today.slug);
+  }
 
   return (
     <AnimatePresence>
@@ -153,7 +223,7 @@ function RadioPopup() {
                     {view.slug !== today.slug && <button className="radio__back" onClick={() => setSlug(today.slug)}>Back to today's word</button>}
                   </div>
                   <dl>
-                    {READ.filter(([k]) => view[k]).map(([k, label]) => <div key={k}><dt>{label}</dt><dd>{view[k]}</dd></div>)}
+                    {readItems.map(([key, label]) => <div key={key}><dt>{label}</dt><dd>{view[key]}</dd></div>)}
                   </dl>
                   {related.length > 0 && (
                     <div className="radio__rel"><span>Related</span>{related.map((r) => <button key={r.slug} onClick={() => setSlug(r.slug)}>{r.title}</button>)}</div>
@@ -170,7 +240,8 @@ function RadioPopup() {
 
 export default function Home() {
   const reduce = useReducedMotion();
-  const heroRef = useRef(null); const stmtRef = useRef(null);
+  const heroRef = useRef(null);
+  const stmtRef = useRef(null);
   const { scrollYProgress: heroP } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const giantY = useTransform(heroP, [0, 1], ['0%', '30%']);
   const photoY = useTransform(heroP, [0, 1], ['0%', '10%']);
@@ -179,20 +250,73 @@ export default function Home() {
   const scl = useTransform(stmtP, [0, 0.5, 1], [0.9, 1.04, 0.96]);
   const textP = useTransform(stmtP, [0.1, 0.85], [0, 1]);
 
-  const seasonsR = useLoad(getSeasons);
-  const peopleR = useLoad(() => getPeople({ limit: 40 }));
-  const nextR = useLoad(getNextRace);
+  // load the three pieces of data once
+  const [seasonsR, setSeasonsR] = useState({ data: null, error: null });
+  const [peopleR, setPeopleR] = useState({ data: null, error: null });
+  const [nextR, setNextR] = useState({ data: null, error: null });
 
-  const champSeasons = seasonsR.data ? seasonsR.data.seasons.filter((s) => s.champion) : [];
-  const profileCount = peopleR.data ? peopleR.data.totalDrivers : null;
-  const ev = nextR.data && nextR.data.evaluation ? nextR.data.evaluation.summary : null;
-  const seasonYears = champSeasons.length ? champSeasons.map((x) => x.season) : null;
+  useEffect(() => {
+    let active = true;
+
+    function load(getData, setResult) {
+      getData()
+        .then((data) => {
+          if (active) setResult({ data: data, error: null });
+        })
+        .catch((err) => {
+          if (active) setResult({ data: null, error: err.message });
+        });
+    }
+
+    load(getSeasons, setSeasonsR);
+    load(() => getPeople({ limit: 40 }), setPeopleR);
+    load(getNextRace, setNextR);
+
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  // how many seasons have a champion, and which years they cover
+  const seasonYears = [];
+  if (seasonsR.data) {
+    for (let i = 0; i < seasonsR.data.seasons.length; i++) {
+      if (seasonsR.data.seasons[i].champion) seasonYears.push(seasonsR.data.seasons[i].season);
+    }
+  }
+
+  let seasonRange = '1950\u20132025';
+  if (seasonYears.length > 0) {
+    seasonRange = `${Math.min(...seasonYears)}\u2013${Math.max(...seasonYears)}`;
+  }
+
+  let driverCount = null;
+  if (peopleR.data) driverCount = peopleR.data.totalDrivers;
+
+  let racesTested = 0;
+  if (nextR.data && nextR.data.evaluation && nextR.data.evaluation.summary) {
+    racesTested = nextR.data.evaluation.summary.races;
+  }
+
   const numbers = [
-    { label: 'Seasons covered', range: seasonYears ? `${Math.min(...seasonYears)}\u2013${Math.max(...seasonYears)}` : '1950\u20132025', value: champSeasons.length, text: 'Every championship season from 1950 to 2025, with champions and constructors taken from the Jolpica F1 API.' },
-    { label: 'Drivers in the archive', value: profileCount, text: 'Every driver who has started a Grand Prix, with verified statistics, career timelines and short stories.' },
-    { label: 'Races backtested', range: 'since 2022', value: ev ? ev.races : 0, text: 'The model is replayed on every race since 2022 using only earlier races, and scored in the open.' },
+    {
+      label: 'Seasons covered',
+      range: seasonRange,
+      value: seasonYears.length,
+      text: 'Every championship season from 1950 to 2025, with champions and constructors taken from the Jolpica F1 API.',
+    },
+    {
+      label: 'Drivers in the archive',
+      value: driverCount,
+      text: 'Every driver who has started a Grand Prix, with verified statistics, career timelines and short stories.',
+    },
+    {
+      label: 'Races backtested',
+      range: 'since 2022',
+      value: racesTested,
+      text: 'The model is replayed on every race since 2022 using only earlier races, and scored in the open.',
+    },
   ];
-
 
   return (
     <div className="home">

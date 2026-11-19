@@ -6,20 +6,35 @@ import Home from './pages/Home.jsx';
 import History from './pages/History.jsx';
 import People from './pages/People.jsx';
 import Prediction from './pages/Prediction.jsx';
-// Home.css also holds the global design system (colours, type, navbar, footer, shared pieces).
+// Home.css also has the shared design (colours, fonts, navbar, footer)
 import './css/Home.css';
 import './css/History.css';
 import './css/People.css';
 import './css/Prediction.css';
 
-const TITLES = { '/': 'PADDOCK | The Past. The People. The Next Chapter.', '/history': 'Stories | PADDOCK', '/people': 'People | PADDOCK', '/prediction': 'Prediction | PADDOCK' };
+const TITLES = {
+  '/': 'PADDOCK | The Past. The People. The Next Chapter.',
+  '/history': 'Stories | PADDOCK',
+  '/people': 'People | PADDOCK',
+  '/prediction': 'Prediction | PADDOCK',
+};
 
 export default function App() {
   const { pathname } = useLocation();
   const isStoriesIndex = pathname === '/history';
-  useEffect(() => { window.scrollTo(0, 0); }, [pathname]);
-  // Story articles set their own title; every other page uses the table above.
-  useEffect(() => { if (pathname.startsWith('/history/')) return; document.title = TITLES['/' + pathname.split('/')[1]] || TITLES['/']; }, [pathname]);
+
+  // go back to the top when the page changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [pathname]);
+
+  // set the page title (a story article sets its own title)
+  useEffect(() => {
+    if (pathname.startsWith('/history/')) return;
+    const firstPart = '/' + pathname.split('/')[1];
+    document.title = TITLES[firstPart] || TITLES['/'];
+  }, [pathname]);
+
   return (
     <>
       <a className="skip-link" href="#main">Skip to content</a>

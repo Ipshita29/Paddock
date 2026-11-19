@@ -1,39 +1,33 @@
-/**
- * predictionService.js
- * ------------------------------------------------------------------
- * Prepares model inputs from Jolpica data, runs the Python model and
- * packages the result for the API.
- *
- * Where the model lives
- * ---------------------
- * The project structure has no folder for Python files, so the model's source
- * is kept in PYTHON_MODEL below and executed with `python3 -I -c <source>`.
- * Node sends one JSON document on stdin and reads one JSON document from stdout.
- * Nothing is written to disk by Python and no extra process stays running.
- *
- * Honesty rules
- * -------------
- *  - No qualifying result -> no prediction (status "awaiting-qualifying").
- *  - Python or its libraries missing -> status "model-unavailable", never fake numbers.
- *  - Every prediction is made only from races that happened BEFORE the target race.
- */
+/*
+  predictionService.js
+  Prepares the data from Jolpica, runs the Python model and builds the API response.
+
+  The project has no folder for Python files, so the model source is kept in the
+  PYTHON_MODEL string below and run with: python3 -I -c <source>
+  Node sends one JSON document to Python and reads one JSON document back.
+
+  Rules:
+  - No qualifying result means no prediction (status "awaiting-qualifying").
+  - If Python or its libraries are missing, the status is "model-unavailable". Numbers are never made up.
+  - A prediction only uses races that happened BEFORE the race being predicted.
+*/
 const { spawn } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const jolpica = require('./jolpicaService');
 const peopleData = require('../data/people.json');
-const { ApiError } = jolpica;
+const ApiError = jolpica.ApiError;
 
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
 const MODEL_FIRST_SEASON = Number(process.env.MODEL_FIRST_SEASON) || 2014;
 const BACKTEST_FIRST_SEASON = Number(process.env.BACKTEST_FIRST_SEASON) || 2022;
-const MIN_HISTORY_RACES = 60; // warm-up (20) + training (>=0) + calibration (40)
+const MIN_HISTORY_RACES = 60;
 const PY_TIMEOUT_MS = 180000;
+const DISCLAIMER = 'These are statistical estimates built from past results, not guaranteed outcomes.';
+const PORTRAITS = peopleData.portraits || {};
 
-// ====================================================================
-// PYTHON MODEL
-// ====================================================================
+// ---------------------------------------------------------------- Python model
 const PYTHON_MODEL = String.raw`
 import sys, json, math, warnings
 warnings.filterwarnings("ignore")
@@ -342,151 +336,218 @@ result = predict(payload) if mode == "predict" else backtest(payload)
 sys.stdout.write(json.dumps(result))
 `;
 
-// ====================================================================
-// Running Python
-// ====================================================================
+// ---------------------------------------------------------------- running Python
+
+function makeError(message, code) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
 function runPython(payload) {
   return new Promise((resolve, reject) => {
     let child;
     try {
       child = spawn(PYTHON_BIN, ['-I', '-c', PYTHON_MODEL], { stdio: ['pipe', 'pipe', 'pipe'] });
     } catch (err) {
-      reject(Object.assign(new Error(`Could not start ${PYTHON_BIN}`), { code: 'PYTHON_MISSING' }));
+      reject(makeError(`Could not start ${PYTHON_BIN}`, 'PYTHON_MISSING'));
       return;
     }
+
     let stdout = '';
     let stderr = '';
-    const timer = setTimeout(() => { child.kill('SIGKILL'); reject(Object.assign(new Error('Prediction model timed out'), { code: 'PYTHON_TIMEOUT' })); }, PY_TIMEOUT_MS);
-    child.stdout.on('data', (d) => { stdout += d; });
-    child.stderr.on('data', (d) => { stderr += d; });
+
+    const timer = setTimeout(() => {
+      child.kill('SIGKILL');
+      reject(makeError('Prediction model timed out', 'PYTHON_TIMEOUT'));
+    }, PY_TIMEOUT_MS);
+
+    child.stdout.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr.on('data', (chunk) => {
+      stderr += chunk;
+    });
+
     child.on('error', (err) => {
       clearTimeout(timer);
-      reject(Object.assign(new Error(`Python interpreter "${PYTHON_BIN}" could not be started (${err.code || err.message})`), { code: 'PYTHON_MISSING' }));
+      reject(makeError(`Python interpreter "${PYTHON_BIN}" could not be started (${err.code || err.message})`, 'PYTHON_MISSING'));
     });
-    child.on('close', (code) => {
+
+    child.on('close', (exitCode) => {
       clearTimeout(timer);
-      if (code !== 0) {
-        const missing = /ModuleNotFoundError|ImportError/.test(stderr);
-        reject(Object.assign(new Error(missing ? 'Python is installed but pandas, numpy or scikit-learn is missing' : `Prediction model failed: ${stderr.trim().split('\n').pop()}`), { code: missing ? 'PYTHON_DEPS' : 'PYTHON_FAILED' }));
+      if (exitCode !== 0) {
+        const missingLibrary = /ModuleNotFoundError|ImportError/.test(stderr);
+        if (missingLibrary) {
+          reject(makeError('Python is installed but pandas, numpy or scikit-learn is missing', 'PYTHON_DEPS'));
+        } else {
+          const lastLine = stderr.trim().split('\n').pop();
+          reject(makeError(`Prediction model failed: ${lastLine}`, 'PYTHON_FAILED'));
+        }
         return;
       }
-      try { resolve(JSON.parse(stdout)); } catch (e) { reject(Object.assign(new Error('Prediction model returned unreadable output'), { code: 'PYTHON_FAILED' })); }
+      try {
+        resolve(JSON.parse(stdout));
+      } catch (err) {
+        reject(makeError('Prediction model returned unreadable output', 'PYTHON_FAILED'));
+      }
     });
-    child.stdin.on('error', () => { /* handled by close/error */ });
+
+    child.stdin.on('error', () => {
+      // the close or error handler above reports the problem
+    });
     child.stdin.end(JSON.stringify(payload));
   });
 }
 
-const isModelUnavailable = (err) => ['PYTHON_MISSING', 'PYTHON_DEPS', 'PYTHON_FAILED', 'PYTHON_TIMEOUT'].includes(err.code);
+function isModelUnavailable(err) {
+  const codes = ['PYTHON_MISSING', 'PYTHON_DEPS', 'PYTHON_FAILED', 'PYTHON_TIMEOUT'];
+  return codes.includes(err.code);
+}
 
-// ====================================================================
-// Dataset
-// ====================================================================
-let datasetMemo = null;
+// ---------------------------------------------------------------- race data
 
-/** Every completed race since MODEL_FIRST_SEASON, oldest first, with qualifying-based grid positions. */
+let datasetCache = null;
+
+// every finished race since MODEL_FIRST_SEASON, oldest first
 async function loadDataset() {
-  if (datasetMemo && Date.now() - datasetMemo.at < 10 * 60 * 1000) return datasetMemo.races;
+  if (datasetCache && Date.now() - datasetCache.at < 10 * 60 * 1000) return datasetCache.races;
+
   const races = [];
   const lastSeason = new Date().getFullYear();
-  for (let season = MODEL_FIRST_SEASON; season <= lastSeason; season += 1) {
+
+  for (let season = MODEL_FIRST_SEASON; season <= lastSeason; season++) {
     const results = await jolpica.getSeasonResults(season);
     const qualifying = await jolpica.getSeasonQualifying(season);
-    const qualiByRound = new Map(qualifying.map((q) => [q.round, new Map(q.qualifying.map((row) => [row.driverId, row.position]))]));
-    results.forEach((race) => {
-      if (!race.results.length) return;
+
+    // qualifying position of each driver, for each round
+    const qualiByRound = new Map();
+    for (let i = 0; i < qualifying.length; i++) {
+      const positions = new Map();
+      for (let j = 0; j < qualifying[i].qualifying.length; j++) {
+        const row = qualifying[i].qualifying[j];
+        positions.set(row.driverId, row.position);
+      }
+      qualiByRound.set(qualifying[i].round, positions);
+    }
+
+    for (let i = 0; i < results.length; i++) {
+      const race = results[i];
+      if (race.results.length === 0) continue;
+
       const quali = qualiByRound.get(race.round);
+      const entries = [];
+      for (let j = 0; j < race.results.length; j++) {
+        const r = race.results[j];
+        let grid = null;
+        if (quali && quali.get(r.driverId)) {
+          grid = quali.get(r.driverId);
+        } else if (r.grid > 0) {
+          grid = r.grid;
+        }
+        entries.push({
+          driverId: r.driverId,
+          code: r.code,
+          name: r.name,
+          constructorId: r.constructorId,
+          constructorName: r.constructorName,
+          grid: grid,
+          position: r.position,
+          positionText: r.positionText,
+          status: r.status,
+          points: r.points,
+        });
+      }
+
       races.push({
         season: race.season,
         round: race.round,
         raceName: race.raceName,
         circuitId: race.circuitId,
         date: race.date,
-        entries: race.results.map((r) => ({
-          driverId: r.driverId,
-          code: r.code,
-          name: r.name,
-          constructorId: r.constructorId,
-          constructorName: r.constructorName,
-          grid: (quali && quali.get(r.driverId)) || (r.grid > 0 ? r.grid : null),
-          position: r.position,
-          positionText: r.positionText,
-          status: r.status,
-          points: r.points,
-        })),
+        entries: entries,
       });
-    });
+    }
   }
+
   races.sort((a, b) => a.season - b.season || a.round - b.round);
-  datasetMemo = { at: Date.now(), races };
+  datasetCache = { at: Date.now(), races: races };
   return races;
 }
 
-// ====================================================================
-// Backtest (cached in memory and on disk)
-// ====================================================================
-const backtestMemo = new Map();
+// ---------------------------------------------------------------- backtest (cached in memory and on disk)
+
+const backtestCache = new Map();
 
 async function getBacktest(races) {
   const last = races[races.length - 1];
   const key = `v2-${MODEL_FIRST_SEASON}-${BACKTEST_FIRST_SEASON}-${last.season}-${last.round}-${races.length}`;
-  if (backtestMemo.has(key)) return backtestMemo.get(key);
+  if (backtestCache.has(key)) return backtestCache.get(key);
+
   const file = path.join(os.tmpdir(), 'paddock-cache', `backtest-${key}.json`);
   try {
-    const cached = JSON.parse(fs.readFileSync(file, 'utf8'));
-    backtestMemo.set(key, cached);
-    return cached;
-  } catch (_) { /* compute below */ }
-  const result = await runPython({ mode: 'backtest', races, firstTestSeason: BACKTEST_FIRST_SEASON });
+    const saved = JSON.parse(fs.readFileSync(file, 'utf8'));
+    backtestCache.set(key, saved);
+    return saved;
+  } catch (err) {
+    // no saved copy yet, so run the model below
+  }
+
+  const result = await runPython({ mode: 'backtest', races: races, firstTestSeason: BACKTEST_FIRST_SEASON });
   if (result.error) throw new Error(`Backtest could not run: ${result.error}`);
-  backtestMemo.set(key, result);
-  try { fs.writeFileSync(file, JSON.stringify(result)); } catch (_) { /* optional */ }
+  backtestCache.set(key, result);
+  try {
+    fs.writeFileSync(file, JSON.stringify(result));
+  } catch (err) {
+    // saving to disk is optional
+  }
   return result;
 }
 
-// ====================================================================
-// Public API
-// ====================================================================
-const raceSummary = (race) => ({
-  season: race.season,
-  round: race.round,
-  raceName: race.raceName,
-  circuitId: race.circuitId,
-  circuitName: race.circuitName,
-  locality: race.locality,
-  country: race.country,
-  lat: race.lat,
-  long: race.long,
-  date: race.date,
-  time: race.time,
-  url: race.url,
-  qualifyingSession: race.sessions && race.sessions.qualifying,
-});
+// ---------------------------------------------------------------- building the response
 
-
-// ====================================================================
-// Presentation data (does not touch the model): portraits and actual podiums
-// ====================================================================
-const PORTRAITS = peopleData.portraits || {};
-/** A driver's portrait from people.json, or null when PADDOCK has none. */
-const imageOf = (driverId) => {
-  const p = PORTRAITS[driverId];
-  return p ? { file: p.file, alt: p.alt, focus: p.focus, credit: p.credit } : null;
-};
-
-/** Attach a portrait to each predicted driver that the page displays. */
-function withPortraits(prediction) {
-  if (!prediction) return prediction;
-  const add = (d) => ({ ...d, image: imageOf(d.driverId) });
-  return { ...prediction, winner: add(prediction.winner), topFive: prediction.topFive.map(add) };
+function raceSummary(race) {
+  return {
+    season: race.season,
+    round: race.round,
+    raceName: race.raceName,
+    circuitId: race.circuitId,
+    circuitName: race.circuitName,
+    locality: race.locality,
+    country: race.country,
+    lat: race.lat,
+    long: race.long,
+    date: race.date,
+    time: race.time,
+    url: race.url,
+    qualifyingSession: race.sessions && race.sessions.qualifying,
+  };
 }
 
+// a driver's portrait from people.json, or null if there is none
+function imageOf(driverId) {
+  const p = PORTRAITS[driverId];
+  if (!p) return null;
+  return { file: p.file, alt: p.alt, focus: p.focus, credit: p.credit };
+}
 
-/**
- * How good was the model's predicted winner? Judged by where that driver actually finished.
- *  exact (P1), podium (P2-P3), top5 (P4-P5), outside (P6 or lower), dnf (not classified as a finisher),
- *  unavailable (no prediction or no result for that driver).
- */
+function addImage(driver) {
+  return { ...driver, image: imageOf(driver.driverId) };
+}
+
+// add a portrait to the predicted winner and the top five
+function withPortraits(prediction) {
+  if (!prediction) return prediction;
+  const topFive = [];
+  for (let i = 0; i < prediction.topFive.length; i++) topFive.push(addImage(prediction.topFive[i]));
+  return { ...prediction, winner: addImage(prediction.winner), topFive: topFive };
+}
+
+/*
+  How good was the predicted winner? It depends on where that driver really finished:
+  exact (P1), podium (P2-P3), top5 (P4-P5), outside (P6 or lower),
+  dnf (did not finish) and unavailable (no prediction or no result).
+*/
 function classifyOutcome(position, finished) {
   if (!Number.isInteger(position) || position < 1) return 'unavailable';
   if (!finished) return 'dnf';
@@ -496,99 +557,208 @@ function classifyOutcome(position, finished) {
   return 'outside';
 }
 
-/** Compare the model's full predicted ranking with the actual classification for one race. */
+// a driver finished the race if their position text is a number (not "R", "D", "W" and so on)
+function isFinisher(entry) {
+  return /^\d+$/.test(String(entry.positionText));
+}
+
+// compare the predicted order with the real result of one race
 function compareRace(r, raw) {
-  const field = Array.isArray(r.field) ? r.field : null;
-  const rawEntries = raw ? [...raw.entries].sort((a, b) => a.position - b.position) : [];
-  if (!field || !rawEntries.length) {
-    return { predictedGrid: null, classification: rawEntries.length ? rawEntries : null, summary: { outcome: 'unavailable' } };
+  let field = null;
+  if (Array.isArray(r.field)) field = r.field;
+
+  let rawEntries = [];
+  if (raw) {
+    rawEntries = [...raw.entries];
+    rawEntries.sort((a, b) => a.position - b.position);
   }
-  const isFinisher = (e) => /^\d+$/.test(String(e.positionText));
-  const classification = rawEntries.map((e) => ({
-    position: e.position, driverId: e.driverId, name: e.name, constructorId: e.constructorId, constructorName: e.constructorName,
-    finished: isFinisher(e), status: e.status || null, image: imageOf(e.driverId),
-  }));
-  const actualPos = new Map(classification.map((c) => [c.driverId, c]));
-  const predictedGrid = field.map((f, i) => {
-    const a = actualPos.get(f.driverId);
-    return { rank: i + 1, driverId: f.driverId, name: f.name, constructorId: f.constructorId, constructorName: f.constructorName, startGrid: f.grid,
-      actualPosition: a ? a.position : null, finished: a ? a.finished : null };
-  });
+
+  if (!field || rawEntries.length === 0) {
+    let classification = null;
+    if (rawEntries.length > 0) classification = rawEntries;
+    return { predictedGrid: null, classification: classification, summary: { outcome: 'unavailable' } };
+  }
+
+  // the real result
+  const classification = [];
+  const actualByDriver = new Map();
+  for (let i = 0; i < rawEntries.length; i++) {
+    const e = rawEntries[i];
+    const row = {
+      position: e.position,
+      driverId: e.driverId,
+      name: e.name,
+      constructorId: e.constructorId,
+      constructorName: e.constructorName,
+      finished: isFinisher(e),
+      status: e.status || null,
+      image: imageOf(e.driverId),
+    };
+    classification.push(row);
+    actualByDriver.set(e.driverId, row);
+  }
+
+  // the predicted order, with where each driver really finished
+  const predictedGrid = [];
+  for (let i = 0; i < field.length; i++) {
+    const f = field[i];
+    const actual = actualByDriver.get(f.driverId);
+    predictedGrid.push({
+      rank: i + 1,
+      driverId: f.driverId,
+      name: f.name,
+      constructorId: f.constructorId,
+      constructorName: f.constructorName,
+      startGrid: f.grid,
+      actualPosition: actual ? actual.position : null,
+      finished: actual ? actual.finished : null,
+    });
+  }
+
   const pick = predictedGrid[0];
-  const topThree = predictedGrid.slice(0, 3);
-  const podiumHits = topThree.filter((d) => d.actualPosition !== null && d.actualPosition <= 3 && d.finished).length;
-  const exactMatches = predictedGrid.filter((d) => d.actualPosition === d.rank).length;
-  const exactPodium = topThree.every((d, i) => d.actualPosition === i + 1);
+
+  let podiumHits = 0;
+  let exactPodium = true;
+  for (let i = 0; i < 3 && i < predictedGrid.length; i++) {
+    const d = predictedGrid[i];
+    if (d.actualPosition !== null && d.actualPosition <= 3 && d.finished) podiumHits++;
+    if (d.actualPosition !== i + 1) exactPodium = false;
+  }
+
+  let exactMatches = 0;
+  for (let i = 0; i < predictedGrid.length; i++) {
+    if (predictedGrid[i].actualPosition === predictedGrid[i].rank) exactMatches++;
+  }
+
   return {
-    predictedGrid,
-    classification,
+    predictedGrid: predictedGrid,
+    classification: classification,
     summary: {
       outcome: classifyOutcome(pick.actualPosition, pick.finished),
       predictedWinner: { driverId: pick.driverId, name: pick.name, constructorName: pick.constructorName },
       finishedPosition: pick.actualPosition,
       finished: pick.finished,
-      podiumHits,           // how many of the predicted top three finished in the real top three
-      exactPodium,          // true only when all three positions match
-      exactMatches,         // drivers whose predicted rank equals their finishing position
+      podiumHits: podiumHits, // how many of the predicted top three finished in the real top three
+      exactPodium: exactPodium, // true only when all three positions match
+      exactMatches: exactMatches, // drivers whose predicted rank equals their finishing position
       fieldSize: predictedGrid.length,
     },
   };
 }
 
-const enrichedMemo = new WeakMap();
-/**
- * Add the real podium (P1 to P3, with teams and portraits) and the winner to every backtest race.
- * The positions come from the same Jolpica race results the model is trained on.
- */
+const enrichedCache = new WeakMap();
+
+// add the real podium and winner to every backtest race
 function withPodiums(evaluation, allRaces) {
   if (!evaluation || !evaluation.races) return evaluation;
-  if (enrichedMemo.has(evaluation)) return enrichedMemo.get(evaluation);
-  const byKey = new Map(allRaces.map((r) => [`${r.season}-${r.round}`, r]));
-  const races = evaluation.races.map((r) => {
-    const raw = byKey.get(`${r.season}-${r.round}`);
-    const podium = raw
-      ? raw.entries.filter((e) => e.position >= 1 && e.position <= 3).sort((a, b) => a.position - b.position)
-        .map((e) => ({ position: e.position, driverId: e.driverId, name: e.name, constructorId: e.constructorId, constructorName: e.constructorName, image: imageOf(e.driverId) }))
-      : [];
+  if (enrichedCache.has(evaluation)) return enrichedCache.get(evaluation);
+
+  const rawByKey = new Map();
+  for (let i = 0; i < allRaces.length; i++) {
+    rawByKey.set(`${allRaces[i].season}-${allRaces[i].round}`, allRaces[i]);
+  }
+
+  const races = [];
+  for (let i = 0; i < evaluation.races.length; i++) {
+    const r = evaluation.races[i];
+    const raw = rawByKey.get(`${r.season}-${r.round}`);
+
+    const podium = [];
+    if (raw) {
+      const top = raw.entries.filter((e) => e.position >= 1 && e.position <= 3);
+      top.sort((a, b) => a.position - b.position);
+      for (let j = 0; j < top.length; j++) {
+        podium.push({
+          position: top[j].position,
+          driverId: top[j].driverId,
+          name: top[j].name,
+          constructorId: top[j].constructorId,
+          constructorName: top[j].constructorName,
+          image: imageOf(top[j].driverId),
+        });
+      }
+    }
+
     const winner = podium[0] || null;
-    const { field, ...rest } = r;
-    return { ...rest, ...compareRace(r, raw), circuitId: raw ? raw.circuitId : null, podium, winner, predictedPick: { ...r.predicted[0], image: imageOf(r.predicted[0].driverId) } };
-  });
-  const out = { ...evaluation, races };
-  enrichedMemo.set(evaluation, out);
-  return out;
+    const rest = { ...r };
+    delete rest.field;
+
+    races.push({
+      ...rest,
+      ...compareRace(r, raw),
+      circuitId: raw ? raw.circuitId : null,
+      podium: podium,
+      winner: winner,
+      predictedPick: { ...r.predicted[0], image: imageOf(r.predicted[0].driverId) },
+    });
+  }
+
+  const result = { ...evaluation, races: races };
+  enrichedCache.set(evaluation, result);
+  return result;
 }
 
-const DISCLAIMER = 'These are statistical estimates built from past results, not guaranteed outcomes.';
-
+// compare the predicted winner with the real result (null if the race has not been run)
 function compare(field, actualRows) {
-  if (!actualRows.length) return null;
-  const winner = actualRows.find((r) => r.position === 1);
-  const predictedWinner = field[0];
-  const actualEntry = field.find((f) => f.driverId === winner.driverId);
+  if (actualRows.length === 0) return null;
+
+  let winner = null;
+  for (let i = 0; i < actualRows.length; i++) {
+    if (actualRows[i].position === 1) {
+      winner = actualRows[i];
+      break;
+    }
+  }
+
+  let winnerInField = null;
+  for (let i = 0; i < field.length; i++) {
+    if (field[i].driverId === winner.driverId) {
+      winnerInField = field[i];
+      break;
+    }
+  }
+
+  const podium = [];
+  for (let i = 0; i < actualRows.length; i++) {
+    const r = actualRows[i];
+    if (r.position <= 3) {
+      podium.push({ position: r.position, driverId: r.driverId, name: r.name, constructorName: r.constructorName });
+    }
+  }
+
   return {
     status: 'completed',
     winner: { driverId: winner.driverId, name: winner.name, constructorName: winner.constructorName, grid: winner.grid },
-    predictedWinnerCorrect: predictedWinner.driverId === winner.driverId,
-    probabilityGivenToWinner: actualEntry ? actualEntry.probability : null,
-    rankGivenToWinner: actualEntry ? actualEntry.rank : null,
-    podium: actualRows.filter((r) => r.position <= 3).map((r) => ({ position: r.position, driverId: r.driverId, name: r.name, constructorName: r.constructorName })),
+    predictedWinnerCorrect: field[0].driverId === winner.driverId,
+    probabilityGivenToWinner: winnerInField ? winnerInField.probability : null,
+    rankGivenToWinner: winnerInField ? winnerInField.rank : null,
+    podium: podium,
   };
 }
+
+// ---------------------------------------------------------------- public functions
 
 async function getRacePrediction(season, round) {
   const seasonNum = Number(season);
   const roundNum = Number(round);
-  if (!Number.isInteger(seasonNum) || !Number.isInteger(roundNum) || roundNum < 1) throw new ApiError(400, 'Season and round must be whole numbers, for example /api/prediction/2026/21.');
-  if (seasonNum <= MODEL_FIRST_SEASON) throw new ApiError(400, `Predictions are available from the ${MODEL_FIRST_SEASON + 1} season onward, because the model needs earlier seasons as history.`);
+  if (!Number.isInteger(seasonNum) || !Number.isInteger(roundNum) || roundNum < 1) {
+    throw new ApiError(400, 'Season and round must be whole numbers, for example /api/prediction/2026/21.');
+  }
+  if (seasonNum <= MODEL_FIRST_SEASON) {
+    throw new ApiError(400, `Predictions are available from the ${MODEL_FIRST_SEASON + 1} season onward, because the model needs earlier seasons as history.`);
+  }
 
   const schedule = await jolpica.getSchedule(seasonNum);
-  const race = schedule.find((r) => r.round === roundNum);
+  let race = null;
+  for (let i = 0; i < schedule.length; i++) {
+    if (schedule[i].round === roundNum) race = schedule[i];
+  }
   if (!race) throw new ApiError(404, `No race found for season ${seasonNum}, round ${roundNum}.`);
 
   const base = { race: raceSummary(race), disclaimer: DISCLAIMER };
+
   const qualifying = await jolpica.getRaceQualifying(seasonNum, roundNum);
-  if (!qualifying.length) {
+  if (qualifying.length === 0) {
     return {
       ...base,
       status: 'awaiting-qualifying',
@@ -596,47 +766,77 @@ async function getRacePrediction(season, round) {
       grid: [],
     };
   }
-  const grid = qualifying.map((q) => ({ position: q.position, driverId: q.driverId, name: q.name, code: q.code, constructorName: q.constructorName, q1: q.q1, q2: q.q2, q3: q.q3 }));
 
-  const all = await loadDataset();
-  const history = all.filter((r) => r.season < seasonNum || (r.season === seasonNum && r.round < roundNum));
-  if (history.length < MIN_HISTORY_RACES) {
-    return { ...base, status: 'insufficient-history', message: `Only ${history.length} earlier races are available; at least ${MIN_HISTORY_RACES} are needed.`, grid };
+  const grid = [];
+  for (let i = 0; i < qualifying.length; i++) {
+    const q = qualifying[i];
+    grid.push({ position: q.position, driverId: q.driverId, name: q.name, code: q.code, constructorName: q.constructorName, q1: q.q1, q2: q.q2, q3: q.q3 });
   }
 
-  const target = {
-    season: seasonNum,
-    round: roundNum,
-    raceName: race.raceName,
-    circuitId: race.circuitId,
-    entries: qualifying.map((q) => ({ driverId: q.driverId, code: q.code, name: q.name, constructorId: q.constructorId, constructorName: q.constructorName, grid: q.position })),
-  };
+  // only races before this one are used as history
+  const all = await loadDataset();
+  const history = [];
+  for (let i = 0; i < all.length; i++) {
+    const r = all[i];
+    if (r.season < seasonNum || (r.season === seasonNum && r.round < roundNum)) history.push(r);
+  }
+  if (history.length < MIN_HISTORY_RACES) {
+    return {
+      ...base,
+      status: 'insufficient-history',
+      message: `Only ${history.length} earlier races are available; at least ${MIN_HISTORY_RACES} are needed.`,
+      grid: grid,
+    };
+  }
+
+  const entries = [];
+  for (let i = 0; i < qualifying.length; i++) {
+    const q = qualifying[i];
+    entries.push({ driverId: q.driverId, code: q.code, name: q.name, constructorId: q.constructorId, constructorName: q.constructorName, grid: q.position });
+  }
+  const target = { season: seasonNum, round: roundNum, raceName: race.raceName, circuitId: race.circuitId, entries: entries };
 
   let model;
   let evaluation;
   try {
-    model = await runPython({ mode: 'predict', races: history, target });
-    if (model.error) throw Object.assign(new Error(model.error), { code: 'PYTHON_FAILED' });
+    model = await runPython({ mode: 'predict', races: history, target: target });
+    if (model.error) throw makeError(model.error, 'PYTHON_FAILED');
     evaluation = await getBacktest(all).catch(() => null);
   } catch (err) {
-    if (isModelUnavailable(err)) return { ...base, status: 'model-unavailable', message: `${err.message}. No prediction is shown because PADDOCK never substitutes made-up numbers.`, grid };
+    if (isModelUnavailable(err)) {
+      return {
+        ...base,
+        status: 'model-unavailable',
+        message: `${err.message}. No prediction is shown because PADDOCK never substitutes made-up numbers.`,
+        grid: grid,
+      };
+    }
     throw err;
   }
 
   const actualRows = await jolpica.getRaceResult(seasonNum, roundNum).catch(() => []);
+
+  // the full field without the "factors" detail
+  const field = [];
+  for (let i = 0; i < model.field.length; i++) {
+    const row = { ...model.field[i] };
+    delete row.factors;
+    field.push(row);
+  }
+
   return {
     ...base,
     status: 'predicted',
-    grid,
+    grid: grid,
     prediction: withPortraits({
       winner: model.field[0],
       topFive: model.field.slice(0, 5),
-      field: model.field.map(({ factors, ...rest }) => rest),
+      field: field,
       probabilitySum: model.probabilitySum,
     }),
     model: model.model,
     result: compare(model.field, actualRows) || { status: 'upcoming' },
-    evaluation,
+    evaluation: evaluation,
   };
 }
 
@@ -645,12 +845,19 @@ async function getNextRacePrediction() {
   if (!next) {
     return { status: 'season-complete', message: 'The calendar has no upcoming Grand Prix.', disclaimer: DISCLAIMER, evaluation: null, latest: null };
   }
+
   const prediction = await getRacePrediction(next.season, next.round);
-  // The most recent completed race that the model had predicted, for the "how did it do" section.
+
+  // the most recent finished race the model had predicted, for the "how did it do" section
   const all = await loadDataset();
-  const evaluation = withPodiums(prediction.evaluation || (await getBacktest(all).catch(() => null)), all);
-  const latest = evaluation && evaluation.races.length ? evaluation.races[evaluation.races.length - 1] : null;
-  return { ...prediction, evaluation, latest };
+  const backtest = prediction.evaluation || (await getBacktest(all).catch(() => null));
+  const evaluation = withPodiums(backtest, all);
+
+  let latest = null;
+  if (evaluation && evaluation.races.length > 0) {
+    latest = evaluation.races[evaluation.races.length - 1];
+  }
+  return { ...prediction, evaluation: evaluation, latest: latest };
 }
 
 module.exports = { getRacePrediction, getNextRacePrediction };

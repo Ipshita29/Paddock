@@ -1,8 +1,4 @@
-/**
- * Editorial magazine dossiers for Formula 1 drivers.
- * Written with motorsport journalistic depth, authentic racing heritage,
- * and technical precision.
- */
+// Magazine stories for the curated drivers.
 
 export const DRIVER_DOSSIERS = {
   leclerc: {
@@ -363,36 +359,68 @@ export const DRIVER_DOSSIERS = {
   }
 };
 
-/**
- * Returns a magazine-style editorial dossier for any driver.
- * If the driver is in the curated dataset, returns the tailored chapters.
- * Otherwise synthesizes an authentic motorsport journalist profile
- * from their verified career statistics, debut, teams, and milestones.
- */
+// Returns the magazine story for a driver.
+// Curated drivers have their own hand-written story. For all other drivers a story
+// is built from their real career statistics.
 export function getDriverDossier(driver) {
   if (!driver) return null;
   const id = driver.driverId || driver.id;
   const curated = DRIVER_DOSSIERS[id];
 
   if (curated) {
-    return {
-      ...curated,
-      actionImage: getDriverActionImage(id),
-    };
+    return { ...curated, actionImage: getDriverActionImage(id) };
   }
 
-  // Synthesize an authentic, structured motorsport magazine dossier for archival / other drivers
+  const stats = driver.stats || {};
   const name = driver.fullName || driver.name || 'This competitor';
   const shortName = driver.name || id;
-  const teams = driver.teams && driver.teams.length ? driver.teams.join(', ') : 'independent entrants';
-  const starts = driver.stats?.starts || 0;
-  const wins = driver.stats?.wins || 0;
-  const podiums = driver.stats?.podiums || 0;
-  const poles = driver.stats?.poles || 0;
-  const titles = driver.stats?.titles?.length || 0;
-  const debut = driver.debut ? `${driver.debut.season} ${driver.debut.race} driving for ${driver.debut.team}` : 'their debut Grand Prix';
-  const firstWin = driver.firstWin ? `${driver.firstWin.season} ${driver.firstWin.race} with ${driver.firstWin.team}` : null;
-  const era = driver.careerYears ? (driver.careerYears[1] ? `${driver.careerYears[0]} to ${driver.careerYears[1]}` : `since ${driver.careerYears[0]}`) : 'their active era';
+  const starts = stats.starts || 0;
+  const wins = stats.wins || 0;
+  const podiums = stats.podiums || 0;
+  const poles = stats.poles || 0;
+  const titleList = stats.titles || [];
+  const titles = titleList.length;
+
+  let teams = 'independent entrants';
+  if (driver.teams && driver.teams.length > 0) teams = driver.teams.join(', ');
+
+  let debut = 'their debut Grand Prix';
+  if (driver.debut) debut = `${driver.debut.season} ${driver.debut.race} driving for ${driver.debut.team}`;
+
+  let firstWin = null;
+  if (driver.firstWin) firstWin = `${driver.firstWin.season} ${driver.firstWin.race} with ${driver.firstWin.team}`;
+
+  let era = 'their active era';
+  if (driver.careerYears) {
+    if (driver.careerYears[1]) {
+      era = `${driver.careerYears[0]} to ${driver.careerYears[1]}`;
+    } else {
+      era = `since ${driver.careerYears[0]}`;
+    }
+  }
+
+  // second paragraph of the "Defining Moments" section
+  let titleParagraph;
+  if (titles > 0) {
+    const plural = titles > 1 ? 's' : '';
+    titleParagraph = `With ${titles} World Drivers' Championship title${plural} (${titleList.join(', ')}), ${shortName} stands among the legendary champions who defined an entire epoch of Formula 1 racing.`;
+  } else if (podiums > 0) {
+    const podiumPlural = podiums > 1 ? 'es' : '';
+    const polePlural = poles > 1 ? 's' : '';
+    titleParagraph = `Recording ${podiums} podium finish${podiumPlural} and ${poles} pole position${polePlural}, ${shortName} repeatedly proved their ability to challenge the front-runners when machinery and opportunity aligned.`;
+  } else {
+    titleParagraph = `${shortName}'s commitment and racecraft across ${starts} Grand Prix starts established their enduring legacy within the sport's competitive tapestry.`;
+  }
+
+  let firstParagraph = `${shortName} accumulated ${starts} Grand Prix starts throughout their tenure, contending in fierce wheel-to-wheel battles across iconic circuits from Monza to Silverstone.`;
+  if (firstWin) {
+    firstParagraph = `The pinnacle of ${shortName}'s Grand Prix career arrived at ${firstWin}, converting raw speed into a historic victory that etched their name into the Formula 1 history books.`;
+  }
+
+  let rivalryParagraph = `Their contribution to ${teams} helped push engineering development forward, leaving an authentic imprint on the rich tapestry of Formula 1 racing heritage.`;
+  if (driver.rivalry) {
+    rivalryParagraph = `Their defining rivalry against ${driver.rivalry.name} produced electrifying wheel-to-wheel drama, pushing both competitors to their absolute technical and physical boundaries.`;
+  }
 
   const sections = [
     {
@@ -404,24 +432,13 @@ export function getDriverDossier(driver) {
     },
     {
       heading: "Defining Moments & Grand Prix Battles",
-      paragraphs: [
-        firstWin
-          ? `The pinnacle of ${shortName}'s Grand Prix career arrived at ${firstWin}, converting raw speed into a historic victory that etched their name into the Formula 1 history books.`
-          : `${shortName} accumulated ${starts} Grand Prix starts throughout their tenure, contending in fierce wheel-to-wheel battles across iconic circuits from Monza to Silverstone.`,
-        titles > 0
-          ? `With ${titles} World Drivers' Championship title${titles > 1 ? 's' : ''} (${driver.stats.titles.join(', ')}), ${shortName} stands among the legendary champions who defined an entire epoch of Formula 1 racing.`
-          : (podiums > 0
-              ? `Recording ${podiums} podium finish${podiums > 1 ? 'es' : ''} and ${poles} pole position${poles > 1 ? 's' : ''}, ${shortName} repeatedly proved their ability to challenge the front-runners when machinery and opportunity aligned.`
-              : `${shortName}'s commitment and racecraft across ${starts} Grand Prix starts established their enduring legacy within the sport's competitive tapestry.`)
-      ]
+      paragraphs: [firstParagraph, titleParagraph]
     },
     {
       heading: "Craft, Telemetry & Lasting Heritage",
       paragraphs: [
         driver.legacy || `${shortName}'s approach behind the wheel mirrored the relentless demands of the era—balancing tire wear, brake temperatures, and aerodynamic efficiency against the limits of mechanical adhesion.`,
-        driver.rivalry
-          ? `Their defining rivalry against ${driver.rivalry.name} produced electrifying wheel-to-wheel drama, pushing both competitors to their absolute technical and physical boundaries.`
-          : `Their contribution to ${teams} helped push engineering development forward, leaving an authentic imprint on the rich tapestry of Formula 1 racing heritage.`
+        rivalryParagraph
       ]
     }
   ];
@@ -430,13 +447,11 @@ export function getDriverDossier(driver) {
     leadQuote: driver.tagline || `${name} contested ${starts} Grands Prix across ${era}, representing ${teams} on the world stage.`,
     actionCaption: `${name} in action during their Formula 1 career.`,
     actionImage: getDriverActionImage(id),
-    sections,
+    sections: sections,
   };
 }
 
-/**
- * Returns secondary action image file if available in client/public/images/
- */
+// returns the path of an action photo for the driver, or null if there is none
 export function getDriverActionImage(driverId) {
   const overrides = {
     michael_schumacher: '/images/schumacher.jpg',

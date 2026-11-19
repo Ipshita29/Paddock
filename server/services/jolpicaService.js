@@ -1,15 +1,11 @@
-/**
- * jolpicaService.js
- * ------------------------------------------------------------------
- * The only module that talks to the Jolpica F1 API (Ergast-compatible).
- *
- *  - Every call goes through one serial queue with a minimum gap, so we stay
- *    inside Jolpica's burst limit (about 4 requests/second).
- *  - 429 and 5xx responses are retried with back-off (Retry-After is honoured).
- *  - Responses are cached in memory and on disk (os.tmpdir), with a TTL per call.
- *  - If the network fails but an older cached copy exists, the stale copy is used.
- *  - Raw Ergast JSON is normalised into small, predictable objects.
- */
+/*
+  jolpicaService.js - the only file that talks to the Jolpica F1 API.
+
+  - Requests go through one queue with a small gap between them, so we stay under the rate limit.
+  - 429 and 5xx errors are retried a few times.
+  - Responses are cached in memory and on disk. If the network fails, an older copy is used.
+  - The raw JSON is turned into small, simple objects.
+*/
 const axios = require('axios');
 const fs = require('fs');
 const os = require('os');
@@ -30,9 +26,15 @@ const http = axios.create({ baseURL: BASE_URL, timeout: 20000, headers: { 'User-
 const memory = new Map();
 const inflight = new Map();
 
-try { fs.mkdirSync(CACHE_DIR, { recursive: true }); } catch (_) { /* disk cache is optional */ }
+try {
+  fs.mkdirSync(CACHE_DIR, { recursive: true });
+} catch (err) {
+  // the disk cache is optional
+}
 
-const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 class JolpicaError extends Error {
   constructor(message, status) {
@@ -42,7 +44,7 @@ class JolpicaError extends Error {
   }
 }
 
-/** An error that carries the HTTP status the API should answer with (shared by all controllers). */
+// an error with the HTTP status the API should answer with
 class ApiError extends Error {
   constructor(status, message) {
     super(message);
@@ -58,14 +60,21 @@ function enqueue(task) {
   const run = chain.then(async () => {
     const wait = lastRequestAt + MIN_GAP_MS - Date.now();
     if (wait > 0) await sleep(wait);
-    try { return await task(); } finally { lastRequestAt = Date.now(); }
+    try {
+      return await task();
+    } finally {
+      lastRequestAt = Date.now();
+    }
   });
   chain = run.catch(() => {});
   return run;
 }
 
 // ---------------------------------------------------------------- cache
-const cacheFile = (key) => path.join(CACHE_DIR, crypto.createHash('sha1').update(key).digest('hex') + '.json');
+function cacheFile(key) {
+  const name = crypto.createHash('sha1').update(key).digest('hex');
+  return path.join(CACHE_DIR, name + '.json');
+}
 
 function readCache(key) {
   if (memory.has(key)) return memory.get(key);
@@ -73,50 +82,66 @@ function readCache(key) {
     const entry = JSON.parse(fs.readFileSync(cacheFile(key), 'utf8'));
     memory.set(key, entry);
     return entry;
-  } catch (_) { return null; }
+  } catch (err) {
+    return null;
+  }
 }
 
 function writeCache(key, data) {
-  const entry = { savedAt: Date.now(), data };
+  const entry = { savedAt: Date.now(), data: data };
   memory.set(key, entry);
-  try { fs.writeFileSync(cacheFile(key), JSON.stringify(entry)); } catch (_) { /* ignore */ }
+  try {
+    fs.writeFileSync(cacheFile(key), JSON.stringify(entry));
+  } catch (err) {
+    // ignore, the memory cache still works
+  }
 }
 
 // ---------------------------------------------------------------- fetch
 async function requestWithRetry(url) {
   let lastError;
-  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt += 1) {
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
     try {
       const res = await enqueue(() => http.get(url));
       return res.data.MRData;
     } catch (err) {
       lastError = err;
       const status = err.response && err.response.status;
-      const retryable = !status || status === 429 || status >= 500;
-      if (!retryable || attempt === MAX_ATTEMPTS) break;
+      const canRetry = !status || status === 429 || status >= 500;
+      if (!canRetry || attempt === MAX_ATTEMPTS) break;
+
+      let delay = attempt * 1500;
       const retryAfter = Number(err.response && err.response.headers && err.response.headers['retry-after']);
-      const delay = retryAfter > 0 ? retryAfter * 1000 : attempt * 1500;
+      if (retryAfter > 0) delay = retryAfter * 1000;
       await sleep(Math.min(delay, 15000));
     }
   }
+
   const status = lastError.response && lastError.response.status;
-  throw new JolpicaError(`Jolpica request failed for ${url}${status ? ` (HTTP ${status})` : ` (${lastError.code || lastError.message})`}`, status);
+  let reason = `(${lastError.code || lastError.message})`;
+  if (status) reason = `(HTTP ${status})`;
+  throw new JolpicaError(`Jolpica request failed for ${url} ${reason}`, status);
 }
 
-/**
- * Fetch JSON with caching. `ttl` is a number (ms) or a function(data) -> ms,
- * which lets us cache empty responses (for example "no qualifying yet") briefly.
- */
+// ttl is a number (ms) or a function(data) that returns a number.
+// A function lets empty answers (for example "no qualifying yet") be cached for a short time.
 async function fetchJson(url, ttl = TTL.MEDIUM) {
   const cached = readCache(url);
-  const ttlFor = (data) => (typeof ttl === 'function' ? ttl(data) : ttl);
-  if (cached && Date.now() - cached.savedAt < ttlFor(cached.data)) return cached.data;
+  if (cached) {
+    let maxAge = ttl;
+    if (typeof ttl === 'function') maxAge = ttl(cached.data);
+    if (Date.now() - cached.savedAt < maxAge) return cached.data;
+  }
   if (inflight.has(url)) return inflight.get(url);
 
   const job = requestWithRetry(url)
-    .then((data) => { writeCache(url, data); return data; })
+    .then((data) => {
+      writeCache(url, data);
+      return data;
+    })
     .catch((err) => {
-      if (cached) return cached.data; // stale-on-error: better old data than none
+      // better old data than none
+      if (cached) return cached.data;
       throw err;
     })
     .finally(() => inflight.delete(url));
@@ -124,7 +149,7 @@ async function fetchJson(url, ttl = TTL.MEDIUM) {
   return job;
 }
 
-/** Fetch every page of a list endpoint and hand back the merged page payloads. */
+// fetch every page of a list endpoint
 async function fetchAllPages(url, ttl) {
   const sep = url.includes('?') ? '&' : '?';
   const pages = [];
@@ -134,7 +159,7 @@ async function fetchAllPages(url, ttl) {
     const page = await fetchJson(`${url}${sep}limit=100&offset=${offset}`, ttl);
     pages.push(page);
     total = Number(page.total) || 0;
-    offset += 100;
+    offset = offset + 100;
   }
   return pages;
 }
@@ -212,25 +237,49 @@ function normalizeQualifying(row) {
   };
 }
 
-/** Merge races that were split across two pages of a paginated response. */
+// the same race can appear on two pages, so join the rows by round number
 function mergeRacesByRound(pages, listKey, normalizeRow) {
   const byRound = new Map();
-  pages.forEach((page) => {
-    page.RaceTable.Races.forEach((r) => {
-      if (!byRound.has(r.round)) byRound.set(r.round, { ...normalizeRace(r), rows: [] });
-      byRound.get(r.round).rows.push(...(r[listKey] || []).map(normalizeRow));
-    });
-  });
-  return [...byRound.values()].sort((a, b) => a.round - b.round);
+  for (let i = 0; i < pages.length; i++) {
+    const races = pages[i].RaceTable.Races;
+    for (let j = 0; j < races.length; j++) {
+      const r = races[j];
+      if (!byRound.has(r.round)) {
+        const race = normalizeRace(r);
+        race.rows = [];
+        byRound.set(r.round, race);
+      }
+      const rows = r[listKey] || [];
+      for (let k = 0; k < rows.length; k++) {
+        byRound.get(r.round).rows.push(normalizeRow(rows[k]));
+      }
+    }
+  }
+  const list = [...byRound.values()];
+  list.sort((a, b) => a.round - b.round);
+  return list;
 }
 
-const currentYear = () => new Date().getFullYear();
-const seasonTtl = (season) => (Number(season) < currentYear() ? TTL.LONG : TTL.MEDIUM);
+function currentYear() {
+  return new Date().getFullYear();
+}
+
+// finished seasons never change, so they are cached for much longer
+function seasonTtl(season) {
+  if (Number(season) < currentYear()) return TTL.LONG;
+  return TTL.MEDIUM;
+}
 
 // ---------------------------------------------------------------- public API
 async function getSeasonsList() {
   const pages = await fetchAllPages('/seasons.json', DAY);
-  return pages.flatMap((p) => p.SeasonTable.Seasons.map((s) => Number(s.season))).sort((a, b) => a - b);
+  const years = [];
+  for (let i = 0; i < pages.length; i++) {
+    const seasons = pages[i].SeasonTable.Seasons;
+    for (let j = 0; j < seasons.length; j++) years.push(Number(seasons[j].season));
+  }
+  years.sort((a, b) => a - b);
+  return years;
 }
 
 async function getSchedule(season) {
@@ -238,7 +287,7 @@ async function getSchedule(season) {
   return data.RaceTable.Races.map(normalizeRace);
 }
 
-/** The next race that has not happened yet, or null when the calendar is complete. */
+// the next race that has not happened yet, or null when the calendar is complete
 async function getNextRace() {
   const data = await fetchJson('/current/next.json', 10 * MINUTE);
   if (data.RaceTable.Races.length) return normalizeRace(data.RaceTable.Races[0]);
@@ -248,23 +297,39 @@ async function getNextRace() {
 
 async function getSeasonResults(season) {
   const pages = await fetchAllPages(`/${season}/results.json`, seasonTtl(season));
-  return mergeRacesByRound(pages, 'Results', normalizeResult).map(({ rows, ...race }) => ({ ...race, results: rows }));
+  const races = mergeRacesByRound(pages, 'Results', normalizeResult);
+  for (let i = 0; i < races.length; i++) {
+    races[i].results = races[i].rows;
+    delete races[i].rows;
+  }
+  return races;
 }
 
 async function getSeasonQualifying(season) {
   const pages = await fetchAllPages(`/${season}/qualifying.json`, seasonTtl(season));
-  return mergeRacesByRound(pages, 'QualifyingResults', normalizeQualifying).map(({ rows, ...race }) => ({ ...race, qualifying: rows }));
+  const races = mergeRacesByRound(pages, 'QualifyingResults', normalizeQualifying);
+  for (let i = 0; i < races.length; i++) {
+    races[i].qualifying = races[i].rows;
+    delete races[i].rows;
+  }
+  return races;
 }
 
 async function getRaceQualifying(season, round) {
-  // Empty responses (qualifying not run yet) are only cached for a few minutes.
-  const data = await fetchJson(`/${season}/${round}/qualifying.json`, (d) => (d.RaceTable.Races.length ? DAY : 3 * MINUTE));
+  // an empty answer (qualifying not run yet) is only cached for a few minutes
+  const data = await fetchJson(`/${season}/${round}/qualifying.json`, (d) => {
+    if (d.RaceTable.Races.length) return DAY;
+    return 3 * MINUTE;
+  });
   const race = data.RaceTable.Races[0];
   return race ? race.QualifyingResults.map(normalizeQualifying) : [];
 }
 
 async function getRaceResult(season, round) {
-  const data = await fetchJson(`/${season}/${round}/results.json?limit=100`, (d) => (d.RaceTable.Races.length ? TTL.LONG : 3 * MINUTE));
+  const data = await fetchJson(`/${season}/${round}/results.json?limit=100`, (d) => {
+    if (d.RaceTable.Races.length) return TTL.LONG;
+    return 3 * MINUTE;
+  });
   const race = data.RaceTable.Races[0];
   return race ? race.Results.map(normalizeResult) : [];
 }
@@ -312,78 +377,119 @@ async function getDriver(driverId) {
   return d ? normalizeDriver(d) : null;
 }
 
-/** Career totals for one driver, assembled from a handful of cached calls. */
+// total number of results for a driver that match a filter, for example wins
+async function getTotal(id, suffix) {
+  const data = await fetchJson(`/drivers/${id}/${suffix}?limit=1`, TTL.LONG);
+  return Number(data.total);
+}
+
+// career totals for one driver
 async function getDriverCareer(driverId) {
   const id = encodeURIComponent(driverId);
-  const total = async (suffix) => Number((await fetchJson(`/drivers/${id}/${suffix}?limit=1`, TTL.LONG)).total);
   const first = await fetchJson(`/drivers/${id}/results.json?limit=1`, TTL.LONG);
   const entries = Number(first.total);
   if (!entries) return { entries: 0, wins: 0, podiums: 0, poles: 0, debut: null, constructors: [] };
+
   const firstRace = first.RaceTable.Races[0];
-  const [wins, second, third, poles] = [await total('results/1.json'), await total('results/2.json'), await total('results/3.json'), await total('grid/1/results.json')];
+  const wins = await getTotal(id, 'results/1.json');
+  const seconds = await getTotal(id, 'results/2.json');
+  const thirds = await getTotal(id, 'results/3.json');
+  const poles = await getTotal(id, 'grid/1/results.json');
   const cons = await fetchJson(`/drivers/${id}/constructors.json?limit=100`, TTL.LONG);
+
+  const constructors = [];
+  for (let i = 0; i < cons.ConstructorTable.Constructors.length; i++) {
+    constructors.push(cons.ConstructorTable.Constructors[i].name);
+  }
   return {
-    entries,
-    wins,
-    podiums: wins + second + third,
-    poles,
+    entries: entries,
+    wins: wins,
+    podiums: wins + seconds + thirds,
+    poles: poles,
     debut: { season: Number(firstRace.season), race: firstRace.raceName, date: firstRace.date },
-    constructors: cons.ConstructorTable.Constructors.map((c) => c.name),
+    constructors: constructors,
   };
 }
 
-/**
- * What counts as a Grand Prix "start" (used for every statistic on the People pages):
- *  - the driver is not marked "Did not start", "Did not qualify" or "Did not prequalify";
- *  - rows with positionText "W" (withdrawn before the race) only count if laps were completed;
- *  - a driver counts once per race, even when a 1950s shared drive gave them two result rows.
- * Wins, podiums and poles are likewise counted once per driver per race. A pole is a race
- * started from grid position 1, as recorded by Jolpica.
- * This reproduces official career start totals for the large majority of drivers; a handful of
- * rows where sources disagree (warm-up and formation-lap incidents) can differ by one.
- */
-const NOT_STARTED = new Set(['Did not start', 'Did not qualify', 'Did not prequalify']);
+/*
+  What counts as a Grand Prix "start" (used for every statistic on the People pages):
+  - the driver is not marked "Did not start", "Did not qualify" or "Did not prequalify"
+  - rows with positionText "W" (withdrawn) only count if laps were completed
+  - a driver counts once per race, even if a shared drive gave them two result rows
+  Wins, podiums and poles are also counted once per driver per race.
+  A pole is a race started from grid position 1.
+*/
+const NOT_STARTED = ['Did not start', 'Did not qualify', 'Did not prequalify'];
+
 function didStart(r) {
-  return !NOT_STARTED.has(r.status) && (r.positionText !== 'W' || (r.laps || 0) > 0);
+  if (NOT_STARTED.includes(r.status)) return false;
+  if (r.positionText === 'W' && !(r.laps > 0)) return false;
+  return true;
 }
 
-/**
- * Pure function: turn normalised races (oldest first) into per-driver career records.
- * The build step that bakes people.json and the live merge both call this, so numbers
- * are calculated identically everywhere.
- * Returns Map(driverId -> { id, name, code, debut, firstWin, last, seasons: Map(season -> totals) }).
- */
+// turns a list of races (oldest first) into career records for every driver
+// the baked archive and the live data both use this, so the numbers always match
 function aggregateRaces(races) {
   const drivers = new Map();
-  races.forEach((race) => {
-    const perDriver = new Map();
-    race.results.forEach((r) => { if (didStart(r)) { if (!perDriver.has(r.driverId)) perDriver.set(r.driverId, []); perDriver.get(r.driverId).push(r); } });
-    perDriver.forEach((rows, id) => {
+
+  for (let i = 0; i < races.length; i++) {
+    const race = races[i];
+
+    // group this race's rows by driver (only drivers who started)
+    const rowsByDriver = new Map();
+    for (let j = 0; j < race.results.length; j++) {
+      const r = race.results[j];
+      if (!didStart(r)) continue;
+      if (!rowsByDriver.has(r.driverId)) rowsByDriver.set(r.driverId, []);
+      rowsByDriver.get(r.driverId).push(r);
+    }
+
+    for (const [id, rows] of rowsByDriver) {
       let d = drivers.get(id);
-      if (!d) { d = { id, name: rows[0].name, code: rows[0].code, debut: null, firstWin: null, last: null, seasons: new Map() }; drivers.set(id, d); }
-      const best = Math.min(...rows.map((x) => x.position));
+      if (!d) {
+        d = { id: id, name: rows[0].name, code: rows[0].code, debut: null, firstWin: null, last: null, seasons: new Map() };
+        drivers.set(id, d);
+      }
+
+      let best = rows[0].position;
+      let points = 0;
+      let hasPole = false;
+      for (let k = 0; k < rows.length; k++) {
+        if (rows[k].position < best) best = rows[k].position;
+        points += rows[k].points;
+        if (rows[k].grid === 1) hasPole = true;
+      }
+
       const where = { season: race.season, round: race.round, race: race.raceName, team: rows[0].constructorName };
+
       let s = d.seasons.get(race.season);
-      if (!s) { s = { starts: 0, wins: 0, podiums: 0, poles: 0, points: 0, teams: [] }; d.seasons.set(race.season, s); }
+      if (!s) {
+        s = { starts: 0, wins: 0, podiums: 0, poles: 0, points: 0, teams: [] };
+        d.seasons.set(race.season, s);
+      }
       s.starts += 1;
       if (best === 1) s.wins += 1;
       if (best <= 3) s.podiums += 1;
-      if (rows.some((x) => x.grid === 1)) s.poles += 1;
-      s.points += rows.reduce((a, x) => a + x.points, 0);
-      rows.forEach((x) => { if (!s.teams.includes(x.constructorName)) s.teams.push(x.constructorName); });
+      if (hasPole) s.poles += 1;
+      s.points += points;
+      for (let k = 0; k < rows.length; k++) {
+        if (!s.teams.includes(rows[k].constructorName)) s.teams.push(rows[k].constructorName);
+      }
+
       if (!d.debut) d.debut = where;
       if (best === 1 && !d.firstWin) d.firstWin = where;
       d.last = where;
-    });
-  });
+    }
+  }
   return drivers;
 }
 
-/** Aggregate every season from `fromSeason` up to the current year (uses the cached season results). */
+// aggregate every season from fromSeason up to the current year
 async function getDriverAggregates(fromSeason) {
   const races = [];
-  for (let season = fromSeason; season <= currentYear(); season += 1) {
-    races.push(...(await getSeasonResults(season)));
+  for (let season = fromSeason; season <= currentYear(); season++) {
+    const seasonRaces = await getSeasonResults(season);
+    for (let i = 0; i < seasonRaces.length; i++) races.push(seasonRaces[i]);
   }
   return aggregateRaces(races);
 }

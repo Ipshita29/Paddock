@@ -1,12 +1,9 @@
-/**
- * Team presentation data for the Career Journey on driver profiles.
- *  - colour: a team's accent colour (presentation only).
- *  - photos: a licensed car photograph for the team, chosen by the year a driver's stint ended.
- *    A team with no entry here (or no photograph for that era) gets a designed panel instead, never a stand-in picture.
- *  - logo: a team logo file in /images. Deliberately empty: no licensed, consistent logo set is available yet,
- *    so panels show a typographic team mark. Add `logo: 'team-xyz.svg'` to an entry to show a logo.
- * Credits come from the Wikimedia Commons records for each file.
- */
+// Team information for the Career Journey on driver pages:
+// - colour: the team's colour (for looks only)
+// - photos: a car photo for the team, matched to the years of the driver's stint.
+//   If there is no photo for those years, a designed panel is shown instead of a wrong picture.
+// - logo: no logo files are available yet, so a text mark is shown.
+// Photo credits come from the Wikimedia Commons pages of each file.
 const PHOTOS = {
   alfa158: { file: "d1950.jpg", caption: "Alfa Romeo 158, 1950", focus: "50% 55%", credit: { author: "azrhey", license: "CC BY-SA 2.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/2.0", source: "https://commons.wikimedia.org/wiki/File:Alfa_Romeo_158_Alfetta_1950_Museo_Storico_OCT_2015.jpg" } },
   lotus49: { file: "d1960.jpg", caption: "Lotus 49, 1967", focus: "50% 55%", credit: { author: "Deep silence (Mika\u00ebl Restoux)", license: "CC BY-SA 3.0", licenseUrl: "http://creativecommons.org/licenses/by-sa/3.0/", source: "https://commons.wikimedia.org/wiki/File:Lotus_49-1.JPG" } },
@@ -37,8 +34,8 @@ const PHOTOS = {
   renaultR25: { file: "team-renault.jpg", caption: "Renault R25, 2005", focus: "50% 55%", credit: { author: "Willtron", license: "CC BY-SA 3.0", licenseUrl: "https://creativecommons.org/licenses/by-sa/3.0", source: "https://commons.wikimedia.org/wiki/File:Renault_R25_(2005)_Fernando_Alonso.jpg" } },
 };
 
-// id, name pattern, colour, photos as [first season, last season, photo key]. A photograph is used only for stints that overlap
-// the seasons its car belongs to; any other stint gets the designed panel instead of a car from the wrong era.
+// each team: id, name pattern, colour, and photos as [first season, last season, photo key]
+// a photo is only used for stints that overlap its seasons
 const TEAMS = [
   ['toro_rosso', /toro rosso/i, '#4A6FD6', [[2006, 2019, 'toroRosso']]],
   ['red_bull', /^red bull/i, '#3671C6', [[2005, 2018, 'redbull2016'], [2019, 9999, 'redbullRB19']]],
@@ -63,19 +60,42 @@ const TEAMS = [
   ['alfa_romeo', /^alfa romeo/i, '#9B1B30', [[1950, 1951, 'alfa158']]],
 ];
 
-/** Look up a team by its Jolpica name. Unknown teams still get a neutral, honest profile. */
+// finds a team by its Jolpica name. Unknown teams get a grey, photo-less profile.
 export function teamProfile(name, firstSeason, lastSeason) {
-  const t = TEAMS.find(([, re]) => re.test(name));
-  if (!t) return { id: null, color: '#8A8A8A', photo: null, logo: null };
-  // the photograph whose era covers the most seasons of this stint (later era wins a tie)
-  let hit = null; let best = 0;
-  t[3].forEach((e) => { const overlap = Math.min(lastSeason, e[1]) - Math.max(firstSeason, e[0]) + 1; if (overlap > 0 && overlap >= best) { best = overlap; hit = e; } });
-  return { id: t[0], color: t[2], photo: hit ? PHOTOS[hit[2]] : null, logo: null };
+  let team = null;
+  for (let i = 0; i < TEAMS.length; i++) {
+    if (TEAMS[i][1].test(name)) {
+      team = TEAMS[i];
+      break;
+    }
+  }
+  if (!team) return { id: null, color: '#8A8A8A', photo: null, logo: null };
+
+  // use the photo whose seasons overlap the most with this stint (the later one wins a tie)
+  let chosen = null;
+  let bestOverlap = 0;
+  const photos = team[3];
+  for (let i = 0; i < photos.length; i++) {
+    const overlap = Math.min(lastSeason, photos[i][1]) - Math.max(firstSeason, photos[i][0]) + 1;
+    if (overlap > 0 && overlap >= bestOverlap) {
+      bestOverlap = overlap;
+      chosen = photos[i];
+    }
+  }
+
+  return { id: team[0], color: team[2], photo: chosen ? PHOTOS[chosen[2]] : null, logo: null };
 }
 
-/** A short typographic mark for a team: initials of its first two meaningful words. */
+// a short text mark for a team: the first letters of its first two main words
 export function teamMark(name) {
-  const words = name.replace(/\b(F1|Team|Racing|Scuderia|Grand Prix|Formula One)\b/gi, ' ').split(/[^A-Za-z0-9]+/).filter(Boolean);
-  if (!words.length) return name.slice(0, 2).toUpperCase();
-  return (words.length === 1 ? words[0].slice(0, 2) : words[0][0] + words[1][0]).toUpperCase();
+  const cleaned = name.replace(/\b(F1|Team|Racing|Scuderia|Grand Prix|Formula One)\b/gi, ' ');
+  const parts = cleaned.split(/[^A-Za-z0-9]+/);
+  const words = [];
+  for (let i = 0; i < parts.length; i++) {
+    if (parts[i] !== '') words.push(parts[i]);
+  }
+
+  if (words.length === 0) return name.slice(0, 2).toUpperCase();
+  if (words.length === 1) return words[0].slice(0, 2).toUpperCase();
+  return (words[0][0] + words[1][0]).toUpperCase();
 }
