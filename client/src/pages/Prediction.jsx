@@ -1,240 +1,396 @@
-import React, { useEffect, useState } from 'react';
-import { Check, X, Info } from 'lucide-react';
-import { Plus, Reveal, SectionHead, Faq, Status } from '../components/Footer.jsx';
-import { getNextRace, getRacePrediction } from '../services/api.js';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
+import { ArrowLeft, ArrowRight, Ban, Check, Minus, Plus as PlusIcon, X } from 'lucide-react';
+import { Reveal, Status } from '../components/Footer.jsx';
+import { getNextRace } from '../services/api.js';
 
-const pct = (p, digits = 0) => (p > 0 && p < 0.005 && digits === 0 ? '<1%' : `${(p * 100).toFixed(digits)}%`);
-const fmtDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+/* ----------------------------------------------------------------------------
+   PREDICTION
+   1. Upcoming race: the race on the left, the model's predicted podium on the right.
+   2. The podium, revisited: a carousel of completed races, each in the winning team's colours.
+   3. How PADDOCK predicts: three short expandable notes.
+   Everything comes from GET /api/prediction/next-race. Team colours are presentation only.
+---------------------------------------------------------------------------- */
+
+// Official-style team colours by Jolpica constructor id (presentation only).
+const TEAM = {
+  ferrari: '#E8002D', mercedes: '#27F4D2', mclaren: '#FF8000', red_bull: '#3671C6', williams: '#64C4FF',
+  alpine: '#FF87BC', renault: '#FFD800', aston_martin: '#229971', haas: '#B6BABD', rb: '#6692FF',
+  alphatauri: '#6692FF', toro_rosso: '#4A6FD6', sauber: '#52E252', alfa: '#C92D4B', audi: '#C8CDD2',
+  cadillac: '#A5ADB8', force_india: '#F596C8', racing_point: '#F596C8', lotus_f1: '#F5B700', marussia: '#C0392B', manor: '#C0392B', caterham: '#1E8449',
+};
+const teamColor = (id) => TEAM[id] || '#8A8A8A';
+
+const pad = (n) => String(n).padStart(2, '0');
+const longDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
 const shortDate = (iso) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+const initials = (n) => n.split(' ').filter(Boolean).map((p) => p[0]).slice(0, 2).join('');
+const surname = (n) => n.trim().split(/\s+/).slice(-1)[0];
+const forename = (n) => n.trim().split(/\s+/).slice(0, -1).join(' ');
 
-const METHOD = [
-  { q: 'How does the model work?', a: "Logistic regression trained on past Grands Prix. It weighs qualifying position, the historical win rate of that grid slot, recent finishing form, recent points share and wins, constructor form, and the driver's record at the circuit." },
-  { q: 'How is data leakage prevented?', a: "Training uses only races before the target race, in chronological order. The 40 most recent races are held out to calibrate the probabilities, and each race's field is scaled to sum to 100%. The backtest re-fits the model for every race using only earlier races." },
-  { q: 'What if qualifying data is missing?', a: 'PADDOCK shows no prediction. If the model cannot run, the page says so instead of showing placeholder numbers.' },
-  { q: 'Can I trust the percentages?', a: 'Treat them as estimates. The calibration table compares what the model said with how often drivers really won, and results are shaped heavily by strategy, weather and incidents.' },
-];
+/** Portrait in an arched frame, or the driver's initials when no photograph exists. */
+function Face({ d }) {
+  const [failed, setFailed] = useState(false);
+  if (d.image && !failed) return <img src={`/images/${d.image.file}`} alt={d.image.alt} style={{ objectPosition: d.image.focus }} loading="lazy" onError={() => setFailed(true)} />;
+  return <span className="face__init" aria-label={`${d.name}, no photograph`}>{initials(d.name)}</span>;
+}
 
-function RaceCards({ race }) {
-  const q = race.qualifyingSession;
+/** Photo credits for the portraits shown, kept to one subtle line. */
+function Credits({ drivers }) {
+  const seen = new Map();
+  drivers.forEach((d) => { if (d && d.image && d.image.credit && !seen.has(d.image.file)) seen.set(d.image.file, `${surname(d.name)}: ${d.image.credit.author}, ${d.image.credit.license}`); });
+  if (!seen.size) return null;
+  return <p className="pd-credits">Photos via Wikimedia Commons. {[...seen.values()].join(' · ')}</p>;
+}
+
+/* ------------------------------------------------------------------ podium */
+/**
+ * Three-position podium: P2 left, P1 centre (raised), P3 right.
+ * `drivers` is an array of up to three {position, name, constructorName, constructorId, image}.
+ * With no drivers it renders an empty, outlined podium (used while awaiting qualifying).
+ */
+function Podium({ drivers, size = 'lg', empty = false }) {
+  const byPos = new Map((drivers || []).map((d) => [d.position, d]));
+  const order = [2, 1, 3];
   return (
-    <Reveal className="status-cards">
-      <div className="scrd"><Plus size={14} className="plus--sm">Grand Prix</Plus><p className="scrd__v">{race.raceName}</p></div>
-      <div className="scrd"><Plus size={14} className="plus--sm">Circuit</Plus><p className="scrd__v">{race.circuitName}</p><p className="muted" style={{ fontSize: 14 }}>{race.locality}, {race.country}</p></div>
-      <div className="scrd"><Plus size={14} className="plus--sm">Race day, round {race.round}</Plus><p className="scrd__v">{fmtDate(race.date)}</p>{q && <p className="muted num" style={{ fontSize: 14 }}>Qualifying {shortDate(q.date)}{q.time ? `, ${q.time.slice(0, 5)} UTC` : ''}</p>}</div>
-    </Reveal>
+    <div className={`pod pod--${size} ${empty ? 'pod--empty' : ''}`} role="list" aria-label={empty ? 'Podium awaiting qualifying' : 'Podium'}>
+      {order.map((pos, i) => {
+        const d = byPos.get(pos);
+        const c = d ? teamColor(d.constructorId) : '#6b6b6b';
+        return (
+          <motion.div key={pos} role="listitem" className={`pod__col pod__col--p${pos}`} style={{ '--tc': c }}
+            initial={{ y: 40, opacity: 0 }} whileInView={{ y: 0, opacity: 1 }} viewport={{ once: true, margin: '-30px' }}
+            transition={{ duration: 0.8, delay: 0.12 + i * 0.1, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="pod__glow" aria-hidden="true" />
+            <div className="pod__who">
+              <div className="pod__face">{d ? <Face d={d} /> : <span className="face__init face__init--ghost" aria-hidden="true">?</span>}</div>
+              <p className="pod__name">{d ? <><small>{forename(d.name)}</small>{surname(d.name)}</> : <span className="pod__tba">To be set</span>}</p>
+              <p className="pod__team">{d ? d.constructorName : 'Awaiting qualifying'}</p>
+            </div>
+            <div className="pod__plat"><span className="pod__pos num">{pos}</span></div>
+          </motion.div>
+        );
+      })}
+    </div>
   );
 }
 
-function Grid({ grid }) {
-  if (!grid || !grid.length) return null;
-  return (
-    <section className="pr-sec" aria-label="Qualifying grid">
-      <SectionHead label="Grid" lead="The qualifying" tail="grid." count={grid.length} />
-      <ol className="glist">{grid.map((g) => <li key={g.driverId}><span className="npill num">{g.position}</span><span className="glist__n">{g.name}</span><span className="glist__t">{g.constructorName}</span></li>)}</ol>
-    </section>
-  );
-}
+/* ----------------------------------------------------------- 1. next race */
+function NextRace({ data }) {
+  const race = data.race;
+  const top3 = data.status === 'predicted' ? data.prediction.topFive.slice(0, 3).map((d, i) => ({ ...d, position: i + 1 })) : null;
+  const q = race && race.qualifyingSession;
+  const unavailable = ['model-unavailable', 'insufficient-history', 'data-unavailable'].includes(data.status);
 
-function Outcome({ result }) {
-  if (!result || result.status !== 'completed') return null;
+  if (!race) {
+    return (
+      <section className="pd-next px" aria-label="Next race">
+        <div className="pd-next__left"><p className="pd-kicker"><i />Next race</p><h1 className="pd-gp">No upcoming Grand Prix</h1><p className="pd-meta">{data.message}</p></div>
+      </section>
+    );
+  }
   return (
-    <section className="pr-sec" aria-label="Prediction against the real result">
-      <SectionHead label="Result" lead="Prediction against" tail="the real result." />
-      <div className="px">
-        <div className="outcome">
-          <span className={`npill ${result.predictedWinnerCorrect ? '' : 'npill--miss'}`}>{result.predictedWinnerCorrect ? <Check size={16} aria-label="Correct" /> : <X size={16} aria-label="Missed" />}</span>
-          <p>{result.predictedWinnerCorrect ? "The model's top pick won." : "The model's top pick did not win."} <b>{result.winner.name}</b> ({result.winner.constructorName}) won from P{result.winner.grid}; the model had given them <span className="num">{pct(result.probabilityGivenToWinner)}</span>, ranking them <span className="num">#{result.rankGivenToWinner}</span> in the field.</p>
-          <p className="muted">Podium: {result.podium.map((p) => `${p.position}. ${p.name}`).join('  ·  ')}</p>
-        </div>
+    <section className="pd-next px" aria-label="Next race and predicted podium">
+      <div className="pd-next__left">
+        <motion.div initial={{ y: 28, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}>
+          <p className="pd-kicker"><i />Next race<span> / Round {race.round}</span></p>
+          <h1 className="pd-gp">{race.raceName.replace(/ Grand Prix$/, '')}<em>Grand Prix</em></h1>
+          <dl className="pd-info">
+            <div><dt>Circuit</dt><dd>{race.circuitName}</dd></div>
+            <div><dt>Country</dt><dd>{race.country}</dd></div>
+            <div><dt>Race day</dt><dd className="num">{longDate(race.date)}</dd></div>
+          </dl>
+        </motion.div>
+      </div>
+
+      <div className="pd-next__right">
+        <p className="pd-label"><i />{top3 ? 'Predicted podium' : 'Predicted podium'}</p>
+        <Podium drivers={top3} empty={!top3} />
+        {data.status === 'awaiting-qualifying' && (
+          <div className="pd-await" role="status">
+            <h2>Awaiting qualifying</h2>
+            <p>PADDOCK publishes a podium only once the grid is set.{q ? <> Qualifying <span className="num">{shortDate(q.date)}{q.time ? `, ${q.time.slice(0, 5)} UTC` : ''}</span>.</> : null}</p>
+          </div>
+        )}
+        {unavailable && <div className="pd-await" role="alert"><h2>Prediction unavailable</h2><p>{data.message}</p></div>}
+        {top3 && <p className="pd-note">A statistical estimate, not a guaranteed result.</p>}
+        {top3 && <Credits drivers={top3} />}
       </div>
     </section>
   );
 }
 
-function PredictionBody({ data }) {
-  const { prediction: p, model, grid } = data;
-  const w = p.winner; const max = p.topFive[0].probability;
-  const topW = Math.max(...model.importances.map((x) => Math.abs(x.weight)));
+/* ------------------------------------------------------- 2. past carousel */
+/** Large, soft podium silhouette used as the card's background. */
+function Silhouette() {
   return (
-    <>
-      <Reveal className="px"><div className="winner">
-        <div><Plus>Predicted winner (estimate)</Plus><p className="winner__name">{w.name}</p><p className="winner__team">{w.constructorName} · starts P{w.grid}</p></div>
-        <p className="winner__prob num" aria-label={`${(w.probability * 100).toFixed(0)} percent estimated chance`}>{pct(w.probability)}</p>
-      </div></Reveal>
-      <p className="px disclaimer"><Info size={16} aria-hidden="true" /> These are statistical estimates built from past results. They are not guaranteed outcomes and not betting advice.</p>
-
-      <section className="pr-sec" aria-label="Top five contenders">
-        <SectionHead label="Top five" lead="The top five" tail="contenders." count={5} />
-        <ol className="top5 top5--px">
-          {p.topFive.map((d) => (
-            <li key={d.driverId} className={d.rank === 1 ? 'win' : ''}>
-              <span className="npill num">{d.rank}</span>
-              <span className="top5__name">{d.name}<small>{d.constructorName} · P{d.grid}</small></span>
-              <span className="top5__pct num">{pct(d.probability)}</span>
-              <span className="top5__bar" aria-hidden="true"><span style={{ width: `${(d.probability / max) * 100}%` }} /></span>
-              <details className="why">
-                <summary>Why the model rates {d.name.split(' ').slice(-1)[0]} this way</summary>
-                <ul>{d.factors.map((f) => <li key={f.key}><span className={`why__tag why__tag--${f.effect}`}>{f.effect === 'helps' ? 'Helps' : 'Holds back'}</span> <b>{f.label}.</b> {f.detail}.</li>)}</ul>
-                <p className="muted" style={{ fontSize: 13 }}>Compared with the average car on this grid.</p>
-              </details>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      <section className="pr-sec" aria-label="Win probability, whole field">
-        <SectionHead label="Whole field" lead="Win probability," tail="every driver." count={p.field.length} />
-        <div className="px">
-          <div className="table-scroll">
-            <table className="ftable">
-              <thead><tr><th scope="col">Driver</th><th scope="col">Team</th><th scope="col" className="r">Grid</th><th scope="col" className="r">Win chance</th></tr></thead>
-              <tbody>{p.field.map((d) => <tr key={d.driverId}><th scope="row">{d.name}</th><td>{d.constructorName}</td><td className="r num">{d.grid}</td><td className="r num">{(d.probability * 100).toFixed(1)}%</td></tr>)}</tbody>
-              <tfoot><tr><th scope="row" colSpan={3}>Total across the field</th><td className="r num">{(p.field.reduce((a, d) => a + d.probability, 0) * 100).toFixed(1)}%</td></tr></tfoot>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <Grid grid={grid} />
-
-      <section className="pr-sec" aria-label="How the model thinks">
-        <SectionHead label="The model" lead="How the model" tail="thinks." />
-        <div className="px model">
-          <p className="model__lead">{model.name}, trained on <span className="num">{model.trainingRaces}</span> races since {model.firstSeason} (the latest <span className="num">{model.calibrationRaces}</span> were held back to calibrate the probabilities). It used only races before this one: the last was the {model.trainedThrough.season} {model.trainedThrough.raceName}.</p>
-          <p className="muted">It does not simply back pole position. Longer bars matter more.</p>
-          <ul className="weights">
-            {model.importances.map((f) => {
-              const better = f.key === 'grid_ln' || f.key === 'drv_form' || f.key === 'circ_pos' ? f.weight < 0 : f.weight > 0;
-              return (
-                <li key={f.key}><span>{f.label}</span>
-                  <span className="wbar" aria-hidden="true"><span className={better ? '' : 'wbar--warn'} style={{ width: `${(Math.abs(f.weight) / topW) * 100}%` }} /></span>
-                  <span className="num weights__v">{f.weight > 0 ? '+' : ''}{f.weight.toFixed(2)}</span></li>
-              );
-            })}
-          </ul>
-          <p className="muted" style={{ fontSize: 13 }}>Weights are in log-odds units on standardised inputs. A negative weight on position or finishing average means a lower number (a better position) raises the chance. Factors overlap, so read them as a guide, not an exact recipe.</p>
-        </div>
-      </section>
-      <Outcome result={data.result} />
-    </>
+    <svg className="rc__sil" viewBox="0 0 300 160" preserveAspectRatio="xMidYMax meet" aria-hidden="true">
+      <defs><linearGradient id="silg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stopColor="currentColor" stopOpacity=".9" /><stop offset="1" stopColor="currentColor" stopOpacity=".15" /></linearGradient></defs>
+      <rect x="10" y="72" width="88" height="88" rx="3" fill="url(#silg)" />
+      <rect x="106" y="28" width="88" height="132" rx="3" fill="url(#silg)" />
+      <rect x="202" y="100" width="88" height="60" rx="3" fill="url(#silg)" />
+      <text x="54" y="125" textAnchor="middle" fontSize="40" fill="#000" fillOpacity=".5" fontFamily="inherit">2</text>
+      <text x="150" y="108" textAnchor="middle" fontSize="52" fill="#000" fillOpacity=".5" fontFamily="inherit">1</text>
+      <text x="246" y="148" textAnchor="middle" fontSize="34" fill="#000" fillOpacity=".5" fontFamily="inherit">3</text>
+    </svg>
   );
 }
 
-function Evaluation({ evaluation, onPick, selected }) {
-  if (!evaluation) return <section className="pr-sec"><SectionHead label="Accuracy history" lead="Scored in the open," tail="race by race." /><p className="px muted">The backtest could not be loaded right now.</p></section>;
-  const s = evaluation.summary; const recent = [...evaluation.races].reverse().slice(0, 14);
-  return (
-    <>
-      <section className="pr-sec" aria-label="Prediction accuracy history">
-        <SectionHead label="Accuracy history" lead="Scored in the open," tail="race by race." count={s.races} />
-        <Reveal className="plans2">
-          {[[pct(s.model.top1, 1), 'Winner picked correctly', true], [pct(s.poleBaseline.top1, 1), '"Pick the pole-sitter" baseline'], [pct(s.model.top3, 1), "Winner in the model's top 3"], [pct(s.model.top5, 1), "Winner in the model's top 5"]].map(([v, l, hit]) => (
-            <div key={l} className={`vcard ${hit ? 'vcard--hit' : ''}`}><Plus size={14} className="plus--sm">{l}</Plus><b className="num">{v}</b></div>
-          ))}
-        </Reveal>
-        <p className="px muted" style={{ marginTop: 18, maxWidth: '80ch', fontSize: 15 }}>{s.protocol} {s.races} races, {s.from.season} to round {s.to.round} of {s.to.season}. The model is a modest improvement on backing pole position; results are shaped heavily by chance.</p>
-        <div className="qtable">
-          <div>
-            <h3 className="h3">Probability <span className="dim">quality</span></h3>
-            {[['Equal chance for everyone', s.uniform], ['Grid-slot history only', s.gridBaseline], ['PADDOCK, before calibration', s.uncalibrated], ['PADDOCK, calibrated', s.model]].map(([l, v], i) => (
-              <div key={l} className={`qr ${i === 3 ? 'hl' : ''}`}><span>{l}</span><span className="num">log loss {v.logLoss.toFixed(3)}</span><span className="num">Brier {v.brier.toFixed(3)}</span></div>
-            ))}
-            <p className="muted" style={{ fontSize: 13, marginTop: 10 }}>Lower is better.</p>
-          </div>
-          <div>
-            <h3 className="h3">Are the percentages <span className="dim">honest?</span></h3>
-            {s.calibration.map((c) => (
-              <div key={c.from} className="calib">
-                <span className="num">{pct(c.from)} to {pct(c.to)}</span>
-                <span className="calib__bars" aria-hidden="true"><span style={{ width: `${Math.min(c.predicted / 0.7, 1) * 100}%` }} /><span style={{ width: `${Math.min(c.observed / 0.7, 1) * 100}%` }} /></span>
-                <span className="num">said {pct(c.predicted, 1)}, won {pct(c.observed, 1)}</span>
-              </div>
-            ))}
-            <p className="muted" style={{ fontSize: 13, marginTop: 10 }}>White: predicted. Orange: observed.</p>
-          </div>
-        </div>
-      </section>
+/* ---------------------------------------------------- prediction outcomes */
+// How good the predicted winner was, judged by where that driver actually finished (classified by the server).
+const OUTCOME = {
+  exact: { label: 'Exact hit', Icon: Check }, podium: { label: 'Podium hit', Icon: Check }, top5: { label: 'Top 5', Icon: Minus },
+  outside: { label: 'Outside top 5', Icon: X }, dnf: { label: 'Did not finish', Icon: Ban }, unavailable: { label: 'Unavailable', Icon: Minus },
+};
+function OutcomePill({ outcome }) {
+  const k = OUTCOME[outcome] ? outcome : 'unavailable';
+  const { label, Icon } = OUTCOME[k];
+  return <span className={`pd-res pd-res--${k}`}><Icon size={13} aria-hidden="true" />{label}</span>;
+}
 
-      <section className="pr-sec" aria-label="Recent races">
-        <SectionHead label="Recent races" lead="Prediction and" tail="result." count={recent.length} />
-        <p className="px muted" style={{ marginTop: -28, marginBottom: 24, fontSize: 15 }}>Select a race to replay the model's prediction for it.</p>
-        {recent.map((r, i) => {
-          const key = `${r.season}-${r.round}`;
-          return (
-            <div key={key} className={`rrow ${selected === key ? 'is-open' : ''}`}>
-              <span className="npill num">{i + 1}</span>
-              <button className="rrow__race" onClick={() => onPick(r)}>{r.season} {r.raceName.replace(' Grand Prix', '')}</button>
-              <span>Model: {r.predicted[0].name} <b className="num rb">{pct(r.predicted[0].probability)}</b></span>
-              <span>Winner: {r.actual.name} <b className="num rb">rated #{r.actual.rank}</b></span>
-              <span className={`rrow__res ${r.hit ? 'hit' : 'miss'}`}>{r.hit ? <><Check size={15} aria-label="Correct" /> Hit</> : <><X size={15} aria-label="Missed" /> Miss</>}</span>
+/** Change from predicted to actual position: gained, dropped or exact. */
+function Delta({ from, to, finished }) {
+  if (finished === false) return <span className="dl dl--dnf" title="Did not finish">DNF</span>;
+  const d = from - to;
+  if (d === 0) return <span className="dl dl--eq" title="Exactly as predicted">Exact</span>;
+  return <span className={`dl ${d > 0 ? 'dl--up' : 'dl--down'}`} title={d > 0 ? `Finished ${d} place${d > 1 ? 's' : ''} higher than predicted` : `Finished ${-d} place${d < -1 ? 's' : ''} lower than predicted`}>{d > 0 ? '\u25B2' : '\u25BC'} {Math.abs(d)}</span>;
+}
+
+function GridRow({ side, pos, d, hover, setHover, predictedRank, highlight }) {
+  const linked = hover === d.driverId;
+  return (
+    <li className={`gr ${linked ? 'is-link' : ''} ${highlight ? 'is-key' : ''}`} style={{ '--tc': teamColor(d.constructorId) }} onMouseEnter={() => setHover(d.driverId)} onMouseLeave={() => setHover(null)}>
+      <span className="gr__pos num">P{pos}</span>
+      <i className="gr__bar" aria-hidden="true" />
+      <span className="gr__who"><b>{d.name}</b><small>{d.constructorName}</small></span>
+      <span className="gr__end">
+        {side === 'pred'
+          ? <span className="gr__note num">{d.finished === false ? 'DNF' : d.actualPosition === null ? '' : `finished P${d.actualPosition}`}</span>
+          : <><span className="gr__note num">predicted P{predictedRank}</span><Delta from={predictedRank} to={pos} finished={d.finished} /></>}
+      </span>
+    </li>
+  );
+}
+
+/** Evaluation summary + the model's predicted grid beside the real classification. */
+function GridComparison({ r }) {
+  const [hover, setHover] = useState(null);
+  const sm = r.summary;
+  if (!r.predictedGrid || !r.classification || sm.outcome === 'unavailable') {
+    return <p className="cmp__none">The full predicted grid is unavailable for this race, so only the result is shown.</p>;
+  }
+  const pick = sm.predictedWinner;
+  const pickRow = r.classification.find((c) => c.driverId === pick.driverId);
+  const rankOf = new Map(r.predictedGrid.map((g) => [g.driverId, g.rank]));
+  const finishText = sm.finished === false ? `Did not finish${pickRow && pickRow.status ? ` (${pickRow.status})` : ''}` : `P${sm.finishedPosition}`;
+  return (
+    <div className="cmp">
+      <dl className="sum">
+        <div><dt>PADDOCK predicted</dt><dd>{pick.name}</dd></div>
+        <div><dt>Actual winner</dt><dd>{r.winner.name}</dd></div>
+        <div className="sum__wide"><dt>{surname(pick.name)} finished</dt><dd><span className="num">{finishText}</span><OutcomePill outcome={sm.outcome} /></dd></div>
+        <div><dt>Predicted top three on the podium</dt><dd><span className="num">{sm.podiumHits} of 3</span>{sm.exactPodium && <em>exact order</em>}</dd></div>
+        <div><dt>Drivers in the exact position</dt><dd><span className="num">{sm.exactMatches} of {sm.fieldSize}</span></dd></div>
+      </dl>
+      <div className="cmp__cols">
+        <section aria-label="PADDOCK predicted grid">
+          <h4 className="cmp__h"><i />PADDOCK predicted grid</h4>
+          <ol className="gr__list">{r.predictedGrid.map((g) => <GridRow key={g.driverId} side="pred" pos={g.rank} d={g} hover={hover} setHover={setHover} highlight={g.rank === 1} />)}</ol>
+        </section>
+        <section aria-label="Actual race classification">
+          <h4 className="cmp__h cmp__h--act"><i />Actual race classification</h4>
+          <ol className="gr__list">{r.classification.map((c) => <GridRow key={c.driverId} side="act" pos={c.position} d={c} hover={hover} setHover={setHover} predictedRank={rankOf.get(c.driverId)} highlight={c.position === 1} />)}</ol>
+        </section>
+      </div>
+      <p className="cmp__foot">The predicted grid is the model's ranking of the whole field, rebuilt using only the races before this one. Drivers who retired are marked DNF.</p>
+    </div>
+  );
+}
+
+const CARD_W = 336;
+function RaceCard({ r, index, open, active, onToggle, narrow }) {
+  const reduce = useReducedMotion();
+  const w = r.winner;
+  const c = teamColor(w.constructorId);
+  const openW = narrow ? Math.min(window.innerWidth - 48, 560) : Math.min(1080, window.innerWidth - 80);
+  return (
+    <motion.article
+      className={`rc ${open ? 'is-open' : ''} ${active ? 'is-active' : ''}`}
+      style={{ '--tc': c }}
+      data-idx={index}
+      animate={{ width: open ? openW : CARD_W }}
+      transition={reduce ? { duration: 0 } : { duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+    >
+      <div className="rc__light" aria-hidden="true" />
+      <Silhouette />
+      <button className="rc__btn" onClick={() => onToggle(index)} aria-expanded={open} aria-label={`${r.raceName} ${r.season}: ${open ? 'collapse' : 'expand'} the podium`}>
+        <span className="rc__top">
+          <span className="rc__meta num">{pad(index + 1)} · {r.season} · Round {r.round}<br />{shortDate(r.date)}</span>
+          <OutcomePill outcome={r.summary ? r.summary.outcome : 'unavailable'} />
+        </span>
+        <span className="rc__race">{r.raceName.replace(/ Grand Prix$/, '')}<small>Grand Prix</small></span>
+        <span className="rc__win">
+          <em>Race winner</em>
+          <b>{w.name}</b>
+          <span className="rc__team"><i />{w.constructorName}</span>
+        </span>
+        <span className="rc__toggle" aria-hidden="true"><PlusIcon size={20} /></span>
+      </button>
+
+      <AnimatePresence initial={false}>
+        {open && (
+          <motion.div className="rc__more" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.45, ease: [0.22, 1, 0.36, 1] }}>
+            <div className="rc__more-in">
+              <Podium drivers={r.podium} size="sm" />
+              <GridComparison r={r} />
+              <Credits drivers={r.podium} />
             </div>
-          );
-        })}
-      </section>
-    </>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.article>
   );
 }
 
+function Carousel({ evaluation }) {
+  const races = evaluation && evaluation.races ? [...evaluation.races].filter((r) => r.winner && r.podium.length === 3).sort((a, b) => b.season - a.season || b.round - a.round) : [];
+  const track = useRef(null);
+  const [openIdx, setOpenIdx] = useState(-1);
+  const [active, setActive] = useState(0);
+  const [narrow, setNarrow] = useState(false);
+  const drag = useRef({ down: false, moved: false, x: 0, left: 0 });
+
+  useEffect(() => {
+    const on = () => setNarrow(window.innerWidth < 720);
+    on(); window.addEventListener('resize', on);
+    return () => window.removeEventListener('resize', on);
+  }, []);
+
+  const measure = useCallback(() => {
+    const t = track.current; if (!t) return;
+    const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0;
+    let best = 0; let bestD = Infinity;
+    [...t.children].forEach((el, i) => { const dd = Math.abs(el.offsetLeft - pl - t.scrollLeft); if (dd < bestD) { bestD = dd; best = i; } });
+    setActive(best);
+  }, []);
+  useEffect(() => { measure(); }, [measure, races.length, openIdx]);
+
+  const go = (dir) => {
+    const t = track.current; if (!t) return;
+    const next = Math.max(0, Math.min(races.length - 1, active + dir));
+    const el = t.children[next]; const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0;
+    t.scrollTo({ left: el.offsetLeft - pl, behavior: 'smooth' });
+  };
+
+  const toggle = (i) => {
+    if (drag.current.moved) return;
+    const willOpen = openIdx !== i;
+    setOpenIdx(willOpen ? i : -1);
+    if (willOpen) setTimeout(() => { const t = track.current; if (!t) return; const pl = parseFloat(getComputedStyle(t).paddingLeft) || 0; t.scrollTo({ left: t.children[i].offsetLeft - pl, behavior: 'smooth' }); }, 60);
+  };
+
+  // mouse drag to scroll (touch uses native scrolling)
+  const onDown = (e) => { if (e.pointerType !== 'mouse') return; const t = track.current; drag.current = { down: true, moved: false, x: e.clientX, left: t.scrollLeft }; };
+  const onMove = (e) => { const d = drag.current; if (!d.down) return; const dx = e.clientX - d.x; if (Math.abs(dx) > 6) { d.moved = true; track.current.classList.add('is-drag'); } if (d.moved) track.current.scrollLeft = d.left - dx; };
+  const onUp = () => { const t = track.current; drag.current.down = false; t && t.classList.remove('is-drag'); setTimeout(() => { drag.current.moved = false; }, 0); };
+
+  return (
+    <section className="pd-past" aria-labelledby="pd-past-h">
+      <div className="pd-past__head px">
+        <Reveal>
+          <h2 id="pd-past-h" className="pd-h2">The podium. <span>Revisited.</span></h2>
+          <p className="pd-sub">Every race has a result. Every prediction has a record.</p>
+        </Reveal>
+        {races.length > 0 && (
+          <div className="pd-arrows">
+            <span className="pd-count num">{pad(Math.min(active + 1, races.length))} / {races.length}</span>
+            <button className="pd-arrow" onClick={() => go(-1)} disabled={active === 0} aria-label="Previous race"><ArrowLeft size={18} /></button>
+            <button className="pd-arrow" onClick={() => go(1)} disabled={active >= races.length - 1} aria-label="Next race"><ArrowRight size={18} /></button>
+          </div>
+        )}
+      </div>
+      {races.length === 0 ? (
+        <p className="px pd-empty">Past races are temporarily unavailable.</p>
+      ) : (
+        <div className="pd-track" ref={track} onScroll={() => window.requestAnimationFrame(measure)} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} tabIndex={0} aria-label="Completed races, scroll horizontally">
+          {races.map((r, i) => <RaceCard key={`${r.season}-${r.round}`} r={r} index={i} open={openIdx === i} active={active === i} onToggle={toggle} narrow={narrow} />)}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------- 3. the model */
+// These notes mirror server/services/predictionService.js. Do not claim a feature that is not there.
+const MODEL = [
+  { t: 'The methodology', body: (
+    <>
+      <p>Before each Grand Prix, a logistic regression model studies every race since 2014 that came before it and learns which signals have pointed to winners. For the new race it scores every driver on the grid, then rescales the scores so the whole field adds up to 100%.</p>
+      <p>The three drivers with the highest chances become the predicted podium, in that order. The 40 most recent races are held back to calibrate those chances, and nothing from the race itself is ever used.</p>
+    </>
+  ) },
+  { t: 'Data sources', body: (
+    <>
+      <p>Everything comes from the Jolpica F1 API: race results since 2014 and qualifying results. Nine signals are weighed:</p>
+      <ul>
+        <li>Qualifying position (the starting grid), and how often drivers from that grid slot have won.</li>
+        <li>The driver's average finish over their last five races, and their points share and wins over the last ten.</li>
+        <li>The constructor's points share over the last five races, and its wins over the last ten.</li>
+        <li>The driver's win record and average finish at that circuit.</li>
+      </ul>
+      <p>Not used: weather, tyre strategy, penalties, car reliability or sprint results.</p>
+    </>
+  ) },
+  { t: 'Limitations', body: (
+    <>
+      <p>These are statistical estimates, not guaranteed outcomes. Strategy, weather, incidents and breakdowns shape every race, and no historical model can see them.</p>
+      <p>Nothing is published until qualifying has been run. Rookies and renamed teams have little or no history, so the model is less certain about them. Every miss is shown as clearly as every hit.</p>
+    </>
+  ) },
+];
+
+function Behind() {
+  const [open, setOpen] = useState(-1);
+  return (
+    <section className="pd-model px" aria-labelledby="pd-model-h">
+      <Reveal><h2 id="pd-model-h" className="pd-h2">How PADDOCK <span>predicts.</span></h2></Reveal>
+      <div className="pd-acc">
+        {MODEL.map((m, i) => (
+          <div className="pd-acc__item" key={m.t}>
+            <button className="pd-acc__btn" onClick={() => setOpen(open === i ? -1 : i)} aria-expanded={open === i}>
+              <span className="pd-acc__n num">{pad(i + 1)}</span><span className="pd-acc__t">{m.t}</span><PlusIcon size={22} aria-hidden="true" />
+            </button>
+            <AnimatePresence initial={false}>
+              {open === i && (
+                <motion.div className="pd-acc__panel" initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}>
+                  <div className="pd-acc__body">{m.body}</div>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+/* --------------------------------------------------------------------- page */
 export default function Prediction() {
   const [state, setState] = useState({ loading: true, error: null, data: null });
-  const [review, setReview] = useState({ key: null, loading: false, error: null, data: null });
   const load = () => {
     setState({ loading: true, error: null, data: null });
     getNextRace().then((data) => setState({ loading: false, error: null, data })).catch((e) => setState({ loading: false, error: e.message, data: null }));
   };
   useEffect(load, []);
-  const pick = (r) => {
-    const key = `${r.season}-${r.round}`;
-    setReview({ key, loading: true, error: null, data: null });
-    getRacePrediction(r.season, r.round)
-      .then((data) => { setReview({ key, loading: false, error: null, data }); setTimeout(() => document.getElementById('review')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); })
-      .catch((e) => setReview({ key, loading: false, error: e.message, data: null }));
-  };
   const d = state.data;
-
   return (
-    <div className="dark">
-      <div className="phead px">
-        <h1 className="h1">Prediction</h1>
-        <p>A statistical estimate of the next Grand Prix winner, rebuilt from historical results after every qualifying session. Estimates, never guarantees.</p>
-        <span className="npill num" aria-label="Round">{d && d.race ? d.race.round : '—'}</span>
-      </div>
-
-      <Status loading={state.loading} error={state.error} onRetry={load} label="Reading the grid and running the model. The first load can take a minute." />
-
-      {d && d.race && (
-        <>
-          <section style={{ paddingBottom: 'clamp(48px, 7vw, 96px)' }} aria-label="Next Grand Prix">
-            <RaceCards race={d.race} />
-            {d.status === 'awaiting-qualifying' && <div className="scrd scrd--wide" role="status"><span className="npill">!</span><div><b>No prediction yet</b><p>{d.message} Below is how the model has performed on races that are already finished.</p></div></div>}
-            {['model-unavailable', 'insufficient-history', 'data-unavailable'].includes(d.status) && <div className="scrd scrd--wide scrd--err" role="alert"><span className="npill">!</span><div><b>Prediction model unavailable</b><p>{d.message} PADDOCK never shows invented numbers. The qualifying grid is still shown below.</p></div></div>}
-            {d.status === 'season-complete' && <div className="scrd scrd--wide"><span className="npill">!</span><div><b>Season complete</b><p>{d.message}</p></div></div>}
-          </section>
-
-          {d.status === 'predicted' && <PredictionBody data={d} />}
-          {['model-unavailable', 'insufficient-history', 'data-unavailable'].includes(d.status) && <Grid grid={d.grid} />}
-
-          <Evaluation evaluation={d.evaluation} onPick={pick} selected={review.key} />
-
-          <div id="review" className="review">
-            <Status loading={review.loading} error={review.error} label="Replaying the model for that race" />
-            {review.data && review.data.status === 'predicted' && (
-              <>
-                <div className="px" style={{ paddingTop: 24 }}><Plus>Race review</Plus><h2 className="h2" style={{ margin: '14px 0 8px' }}>{review.data.race.season} {review.data.race.raceName}</h2><p className="muted" style={{ marginBottom: 28 }}>Reconstructed using only the races before it.</p></div>
-                <RaceCards race={review.data.race} />
-                <div style={{ height: 40 }} />
-                <PredictionBody data={review.data} />
-              </>
-            )}
-          </div>
-        </>
+    <div className="dark pd">
+      {(state.loading || state.error) && (
+        <div className="pd-state px"><Status loading={state.loading} error={state.error} onRetry={load} label="Reading the grid and the model. The first load can take a minute." /></div>
       )}
-      {d && !d.race && d.status === 'season-complete' && <p className="px muted" style={{ paddingBottom: 80, fontSize: 20 }}>{d.message}</p>}
-
-      <section className="pr-sec" style={{ paddingBottom: 'clamp(72px, 10vw, 150px)' }} aria-label="Method">
-        <SectionHead label="Method" lead="How it" tail="works." count={METHOD.length} />
-        <div className="px" style={{ maxWidth: 1040, marginLeft: 'auto' }}><Faq items={METHOD} /></div>
-      </section>
+      {d && <NextRace data={d} />}
+      {d && <Carousel evaluation={d.evaluation} />}
+      <Behind />
     </div>
   );
 }
