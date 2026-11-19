@@ -22,6 +22,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const jolpica = require('./jolpicaService');
+const peopleData = require('../data/people.json');
 const { ApiError } = jolpica;
 
 const PYTHON_BIN = process.env.PYTHON_BIN || 'python3';
@@ -302,6 +303,8 @@ def backtest(payload):
         out.append({
             "season": race["season"], "round": race["round"], "raceName": race["raceName"], "date": race["date"],
             "predicted": [{"driverId": rows.iloc[i]["driverId"], "name": rows.iloc[i]["name"], "grid": int(rows.iloc[i]["grid"]), "probability": round(float(cal[i]), 4)} for i in order[:5]],
+            # the complete ranking the model produced for this race, using only information from before it
+            "field": [{"driverId": rows.iloc[i]["driverId"], "name": rows.iloc[i]["name"], "constructorId": rows.iloc[i]["constructorId"], "constructorName": rows.iloc[i]["constructorName"], "grid": int(rows.iloc[i]["grid"]), "probability": round(float(cal[i]), 4)} for i in order],
             "pole": {"driverId": rows.iloc[pole]["driverId"], "name": rows.iloc[pole]["name"]},
             "actual": {"driverId": rows.iloc[w]["driverId"], "name": rows.iloc[w]["name"], "grid": int(rows.iloc[w]["grid"]), "probability": round(float(cal[w]), 4), "rank": m["rank"]},
             "hit": bool(m["top1"]), "poleHit": bool(pole == w),
@@ -407,6 +410,8 @@ async function loadDataset() {
           constructorName: r.constructorName,
           grid: (quali && quali.get(r.driverId)) || (r.grid > 0 ? r.grid : null),
           position: r.position,
+          positionText: r.positionText,
+          status: r.status,
           points: r.points,
         })),
       });
@@ -424,7 +429,7 @@ const backtestMemo = new Map();
 
 async function getBacktest(races) {
   const last = races[races.length - 1];
-  const key = `${MODEL_FIRST_SEASON}-${BACKTEST_FIRST_SEASON}-${last.season}-${last.round}-${races.length}`;
+  const key = `v2-${MODEL_FIRST_SEASON}-${BACKTEST_FIRST_SEASON}-${last.season}-${last.round}-${races.length}`;
   if (backtestMemo.has(key)) return backtestMemo.get(key);
   const file = path.join(os.tmpdir(), 'paddock-cache', `backtest-${key}.json`);
   try {
@@ -457,6 +462,102 @@ const raceSummary = (race) => ({
   url: race.url,
   qualifyingSession: race.sessions && race.sessions.qualifying,
 });
+
+
+// ====================================================================
+// Presentation data (does not touch the model): portraits and actual podiums
+// ====================================================================
+const PORTRAITS = peopleData.portraits || {};
+/** A driver's portrait from people.json, or null when PADDOCK has none. */
+const imageOf = (driverId) => {
+  const p = PORTRAITS[driverId];
+  return p ? { file: p.file, alt: p.alt, focus: p.focus, credit: p.credit } : null;
+};
+
+/** Attach a portrait to each predicted driver that the page displays. */
+function withPortraits(prediction) {
+  if (!prediction) return prediction;
+  const add = (d) => ({ ...d, image: imageOf(d.driverId) });
+  return { ...prediction, winner: add(prediction.winner), topFive: prediction.topFive.map(add) };
+}
+
+
+/**
+ * How good was the model's predicted winner? Judged by where that driver actually finished.
+ *  exact (P1), podium (P2-P3), top5 (P4-P5), outside (P6 or lower), dnf (not classified as a finisher),
+ *  unavailable (no prediction or no result for that driver).
+ */
+function classifyOutcome(position, finished) {
+  if (!Number.isInteger(position) || position < 1) return 'unavailable';
+  if (!finished) return 'dnf';
+  if (position === 1) return 'exact';
+  if (position <= 3) return 'podium';
+  if (position <= 5) return 'top5';
+  return 'outside';
+}
+
+/** Compare the model's full predicted ranking with the actual classification for one race. */
+function compareRace(r, raw) {
+  const field = Array.isArray(r.field) ? r.field : null;
+  const rawEntries = raw ? [...raw.entries].sort((a, b) => a.position - b.position) : [];
+  if (!field || !rawEntries.length) {
+    return { predictedGrid: null, classification: rawEntries.length ? rawEntries : null, summary: { outcome: 'unavailable' } };
+  }
+  const isFinisher = (e) => /^\d+$/.test(String(e.positionText));
+  const classification = rawEntries.map((e) => ({
+    position: e.position, driverId: e.driverId, name: e.name, constructorId: e.constructorId, constructorName: e.constructorName,
+    finished: isFinisher(e), status: e.status || null, image: imageOf(e.driverId),
+  }));
+  const actualPos = new Map(classification.map((c) => [c.driverId, c]));
+  const predictedGrid = field.map((f, i) => {
+    const a = actualPos.get(f.driverId);
+    return { rank: i + 1, driverId: f.driverId, name: f.name, constructorId: f.constructorId, constructorName: f.constructorName, startGrid: f.grid,
+      actualPosition: a ? a.position : null, finished: a ? a.finished : null };
+  });
+  const pick = predictedGrid[0];
+  const topThree = predictedGrid.slice(0, 3);
+  const podiumHits = topThree.filter((d) => d.actualPosition !== null && d.actualPosition <= 3 && d.finished).length;
+  const exactMatches = predictedGrid.filter((d) => d.actualPosition === d.rank).length;
+  const exactPodium = topThree.every((d, i) => d.actualPosition === i + 1);
+  return {
+    predictedGrid,
+    classification,
+    summary: {
+      outcome: classifyOutcome(pick.actualPosition, pick.finished),
+      predictedWinner: { driverId: pick.driverId, name: pick.name, constructorName: pick.constructorName },
+      finishedPosition: pick.actualPosition,
+      finished: pick.finished,
+      podiumHits,           // how many of the predicted top three finished in the real top three
+      exactPodium,          // true only when all three positions match
+      exactMatches,         // drivers whose predicted rank equals their finishing position
+      fieldSize: predictedGrid.length,
+    },
+  };
+}
+
+const enrichedMemo = new WeakMap();
+/**
+ * Add the real podium (P1 to P3, with teams and portraits) and the winner to every backtest race.
+ * The positions come from the same Jolpica race results the model is trained on.
+ */
+function withPodiums(evaluation, allRaces) {
+  if (!evaluation || !evaluation.races) return evaluation;
+  if (enrichedMemo.has(evaluation)) return enrichedMemo.get(evaluation);
+  const byKey = new Map(allRaces.map((r) => [`${r.season}-${r.round}`, r]));
+  const races = evaluation.races.map((r) => {
+    const raw = byKey.get(`${r.season}-${r.round}`);
+    const podium = raw
+      ? raw.entries.filter((e) => e.position >= 1 && e.position <= 3).sort((a, b) => a.position - b.position)
+        .map((e) => ({ position: e.position, driverId: e.driverId, name: e.name, constructorId: e.constructorId, constructorName: e.constructorName, image: imageOf(e.driverId) }))
+      : [];
+    const winner = podium[0] || null;
+    const { field, ...rest } = r;
+    return { ...rest, ...compareRace(r, raw), circuitId: raw ? raw.circuitId : null, podium, winner, predictedPick: { ...r.predicted[0], image: imageOf(r.predicted[0].driverId) } };
+  });
+  const out = { ...evaluation, races };
+  enrichedMemo.set(evaluation, out);
+  return out;
+}
 
 const DISCLAIMER = 'These are statistical estimates built from past results, not guaranteed outcomes.';
 
@@ -527,12 +628,12 @@ async function getRacePrediction(season, round) {
     ...base,
     status: 'predicted',
     grid,
-    prediction: {
+    prediction: withPortraits({
       winner: model.field[0],
       topFive: model.field.slice(0, 5),
       field: model.field.map(({ factors, ...rest }) => rest),
       probabilitySum: model.probabilitySum,
-    },
+    }),
     model: model.model,
     result: compare(model.field, actualRows) || { status: 'upcoming' },
     evaluation,
@@ -546,7 +647,8 @@ async function getNextRacePrediction() {
   }
   const prediction = await getRacePrediction(next.season, next.round);
   // The most recent completed race that the model had predicted, for the "how did it do" section.
-  const evaluation = prediction.evaluation || (await loadDataset().then(getBacktest).catch(() => null));
+  const all = await loadDataset();
+  const evaluation = withPodiums(prediction.evaluation || (await getBacktest(all).catch(() => null)), all);
   const latest = evaluation && evaluation.races.length ? evaluation.races[evaluation.races.length - 1] : null;
   return { ...prediction, evaluation, latest };
 }
