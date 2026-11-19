@@ -5,7 +5,7 @@ import { X } from 'lucide-react';
 
 const LINKS = [
   { to: '/', label: 'Home', n: '1.0' },
-  { to: '/history', label: 'History', n: '2.0' },
+  { to: '/history', label: 'Stories', n: '2.0' },
   { to: '/people', label: 'People', n: '3.0' },
   { to: '/prediction', label: 'Prediction', n: '4.0' },
 ];
@@ -60,7 +60,7 @@ export default function Navbar() {
             </nav>
             <div className="menu__foot">
               <div><p>The Past. The People. The Next Chapter.</p><p>An independent Formula 1 magazine</p></div>
-              <div className="chips"><span className="chip">2.0 History</span><span className="chip">3.0 People</span><span className="chip">4.0 Prediction</span></div>
+              <div className="chips"><span className="chip">2.0 Stories</span><span className="chip">3.0 People</span><span className="chip">4.0 Prediction</span></div>
             </div>
           </motion.div>
         )}
