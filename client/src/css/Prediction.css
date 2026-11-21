@@ -5,6 +5,7 @@
 .pd { padding-bottom: clamp(80px, 11vw, 160px); overflow-x: clip; }
 .pd-state { padding-top: 140px; min-height: 40vh; }
 .pd-state .status { padding-left: 0; }
+.pd-state--inline { padding-top: 48px; min-height: 0; }
 
 /* ---------------- 1. next race + podium ---------------- */
 .pd-next { padding-top: clamp(104px, 10vw, 140px); padding-bottom: clamp(56px, 8vw, 110px); display: grid; grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.2fr); gap: clamp(32px, 6vw, 110px); align-items: center; min-height: min(860px, 100svh); }

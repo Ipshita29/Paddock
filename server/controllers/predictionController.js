@@ -20,3 +20,13 @@ exports.getRace = async (req, res, next) => {
     next(err);
   }
 };
+
+// GET /api/prediction/history
+exports.getHistory = async (req, res, next) => {
+  try {
+    const data = await prediction.getPredictionHistory();
+    res.json({ ok: true, data: data });
+  } catch (err) {
+    next(err);
+  }
+};

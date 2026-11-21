@@ -11,7 +11,7 @@
   - If Python or its libraries are missing, the status is "model-unavailable". Numbers are never made up.
   - A prediction only uses races that happened BEFORE the race being predicted.
 */
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const fs = require('fs');
 const os = require('os');
 const path = require('path');
@@ -26,6 +26,22 @@ const MIN_HISTORY_RACES = 60;
 const PY_TIMEOUT_MS = 180000;
 const DISCLAIMER = 'These are statistical estimates built from past results, not guaranteed outcomes.';
 const PORTRAITS = peopleData.portraits || {};
+const SAVED_FILE = path.join(__dirname, '..', 'data', 'predictions.json');
+
+// Past predictions are saved in data/predictions.json by "npm run save-predictions".
+// The file is part of the deployment, so it survives restarts and works on hosts without Python.
+let savedCache = null;
+
+function readSaved() {
+  if (savedCache) return savedCache;
+  try {
+    // require (not fs) so the deployment bundles the file
+    savedCache = require('../data/predictions.json');
+  } catch (err) {
+    savedCache = null;
+  }
+  return savedCache;
+}
 
 // ---------------------------------------------------------------- Python model
 const PYTHON_MODEL = String.raw`
@@ -398,6 +414,17 @@ function runPython(payload) {
     });
     child.stdin.end(JSON.stringify(payload));
   });
+}
+
+// checked once: is the Python interpreter there at all? (it is not on Vercel)
+let pythonChecked = null;
+
+function pythonExists() {
+  if (pythonChecked === null) {
+    const check = spawnSync(PYTHON_BIN, ['--version']);
+    pythonChecked = !check.error;
+  }
+  return pythonChecked;
 }
 
 function isModelUnavailable(err) {
@@ -773,6 +800,16 @@ async function getRacePrediction(season, round) {
     grid.push({ position: q.position, driverId: q.driverId, name: q.name, code: q.code, constructorName: q.constructorName, q1: q.q1, q2: q.q2, q3: q.q3 });
   }
 
+  if (!pythonExists()) {
+    return {
+      ...base,
+      status: 'model-unavailable',
+      message: `Python interpreter "${PYTHON_BIN}" could not be started. No prediction is shown because PADDOCK never substitutes made-up numbers.`,
+      grid: grid,
+      evaluation: summaryOf(await getEvaluation()),
+    };
+  }
+
   // only races before this one are used as history
   const all = await loadDataset();
   const history = [];
@@ -801,7 +838,7 @@ async function getRacePrediction(season, round) {
   try {
     model = await runPython({ mode: 'predict', races: history, target: target });
     if (model.error) throw makeError(model.error, 'PYTHON_FAILED');
-    evaluation = await getBacktest(all).catch(() => null);
+    evaluation = await getEvaluation();
   } catch (err) {
     if (isModelUnavailable(err)) {
       return {
@@ -836,8 +873,14 @@ async function getRacePrediction(season, round) {
     }),
     model: model.model,
     result: compare(model.field, actualRows) || { status: 'upcoming' },
-    evaluation: evaluation,
+    evaluation: summaryOf(evaluation),
   };
+}
+
+// the accuracy numbers without the list of races (that list is served by /api/prediction/history)
+function summaryOf(evaluation) {
+  if (!evaluation) return null;
+  return { summary: evaluation.summary };
 }
 
 async function getNextRacePrediction() {
@@ -848,16 +891,37 @@ async function getNextRacePrediction() {
 
   const prediction = await getRacePrediction(next.season, next.round);
 
-  // the most recent finished race the model had predicted, for the "how did it do" section
-  const all = await loadDataset();
-  const backtest = prediction.evaluation || (await getBacktest(all).catch(() => null));
-  const evaluation = withPodiums(backtest, all);
+  // the past predictions come from the saved file; only if it is missing is the model run again
+  const evaluation = await getEvaluation();
 
   let latest = null;
   if (evaluation && evaluation.races.length > 0) {
     latest = evaluation.races[evaluation.races.length - 1];
   }
-  return { ...prediction, evaluation: evaluation, latest: latest };
+  return { ...prediction, evaluation: summaryOf(evaluation), latest: latest };
 }
 
-module.exports = { getRacePrediction, getNextRacePrediction };
+// every past race with its saved prediction and the real result
+async function getEvaluation() {
+  const saved = readSaved();
+  if (saved) return saved.evaluation;
+  const all = await loadDataset();
+  const backtest = await getBacktest(all).catch(() => null);
+  return withPodiums(backtest, all);
+}
+
+// GET /api/prediction/history
+async function getPredictionHistory() {
+  const saved = readSaved();
+  const evaluation = await getEvaluation();
+  return { savedAt: saved ? saved.savedAt : null, evaluation: evaluation, disclaimer: DISCLAIMER };
+}
+
+// used by savePredictions.js: run the model on every past race and keep the result
+async function buildSaved() {
+  const all = await loadDataset();
+  const backtest = await getBacktest(all);
+  return { savedAt: new Date().toISOString(), evaluation: withPodiums(backtest, all) };
+}
+
+module.exports = { getRacePrediction, getNextRacePrediction, getPredictionHistory, buildSaved, SAVED_FILE };

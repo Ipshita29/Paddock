@@ -11,11 +11,18 @@ async function request(path, maxAge = 60000) {
   const old = saved.get(path);
   if (old && Date.now() - old.time < maxAge) return old.data;
 
+  // give up after 40 seconds instead of waiting forever
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 40000);
+
   let res;
   try {
-    res = await fetch(`${BASE}${path}`);
+    res = await fetch(`${BASE}${path}`, { signal: controller.signal });
   } catch (err) {
+    if (err.name === 'AbortError') throw new Error('The PADDOCK server took too long to answer. Please try again.');
     throw new Error('The PADDOCK server could not be reached. Check your connection and try again.');
+  } finally {
+    clearTimeout(timer);
   }
 
   let body = null;
@@ -67,6 +74,11 @@ export function getPerson(driverId) {
 
 export function getNextRace() {
   return request('/prediction/next-race', 2 * 60000);
+}
+
+// every finished race with its saved prediction and the real result
+export function getPredictionHistory() {
+  return request('/prediction/history', 10 * 60000);
 }
 
 export function getRacePrediction(season, round) {

@@ -2,13 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { ArrowLeft, ArrowRight, Ban, Check, Minus, Plus as PlusIcon, X } from 'lucide-react';
 import { Reveal, Status } from '../components/Footer.jsx';
-import { getNextRace } from '../services/api.js';
+import { getNextRace, getPredictionHistory } from '../services/api.js';
 
 // PREDICTION PAGE
 // 1. Next race: the race on the left, the predicted podium on the right.
 // 2. The podium, revisited: a carousel of finished races.
 // 3. How PADDOCK predicts: three short notes.
-// All data comes from GET /api/prediction/next-race. Team colours are only for looks.
+// The next race comes from GET /api/prediction/next-race and the finished races from GET /api/prediction/history, loaded separately. Team colours are only for looks.
 
 // team colours by Jolpica constructor id
 const TEAM = {
@@ -441,7 +441,7 @@ function Carousel({ evaluation }) {
         )}
       </div>
       {races.length === 0 ? (
-        <p className="px pd-empty">Past races are temporarily unavailable.</p>
+        <p className="px pd-empty">No saved predictions yet. They appear here after a race has been run.</p>
       ) : (
         <div className="pd-track" ref={track} onScroll={() => window.requestAnimationFrame(measure)} onPointerDown={onDown} onPointerMove={onMove} onPointerUp={onUp} onPointerLeave={onUp} tabIndex={0} aria-label="Completed races, scroll horizontally">
           {races.map((r, i) => <RaceCard key={`${r.season}-${r.round}`} r={r} index={i} open={openIdx === i} active={active === i} onToggle={toggle} narrow={narrow} />)}
@@ -507,27 +507,39 @@ function Behind() {
 
 // ---------------------------------------------------------------- page
 export default function Prediction() {
-  const [state, setState] = useState({ loading: true, error: null, data: null });
+  const [next, setNext] = useState({ loading: true, error: null, data: null });
+  const [past, setPast] = useState({ loading: true, error: null, data: null });
 
-  function load() {
-    setState({ loading: true, error: null, data: null });
+  // the two requests run at the same time and each section shows up as soon as its own data arrives
+  function loadNext() {
+    setNext({ loading: true, error: null, data: null });
     getNextRace()
-      .then((data) => setState({ loading: false, error: null, data: data }))
-      .catch((err) => setState({ loading: false, error: err.message, data: null }));
+      .then((data) => setNext({ loading: false, error: null, data: data }))
+      .catch((err) => setNext({ loading: false, error: err.message, data: null }));
+  }
+
+  function loadPast() {
+    setPast({ loading: true, error: null, data: null });
+    getPredictionHistory()
+      .then((data) => setPast({ loading: false, error: null, data: data }))
+      .catch((err) => setPast({ loading: false, error: err.message, data: null }));
   }
 
   useEffect(() => {
-    load();
+    loadNext();
+    loadPast();
   }, []);
 
-  const d = state.data;
   return (
     <div className="dark pd">
-      {(state.loading || state.error) && (
-        <div className="pd-state px"><Status loading={state.loading} error={state.error} onRetry={load} label="Reading the grid and the model. The first load can take a minute." /></div>
+      {(next.loading || next.error) && (
+        <div className="pd-state px"><Status loading={next.loading} error={next.error} onRetry={loadNext} label="Reading the grid for the next race." /></div>
       )}
-      {d && <NextRace data={d} />}
-      {d && <Carousel evaluation={d.evaluation} />}
+      {next.data && <NextRace data={next.data} />}
+      {(past.loading || past.error) && (
+        <div className="pd-state pd-state--inline px"><Status loading={past.loading} error={past.error} onRetry={loadPast} label="Loading the saved predictions." /></div>
+      )}
+      {past.data && <Carousel evaluation={past.data.evaluation} />}
       <Behind />
     </div>
   );
