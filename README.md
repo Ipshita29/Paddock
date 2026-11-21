@@ -66,6 +66,7 @@ All responses are `{ "ok": true, "data": ... }` or `{ "ok": false, "error": { "s
 | `GET /api/people?filter=&decade=&search=&page=&limit=&sort=` | The driver archive, paginated. `filter`: `all`, `current`, `champions`, `retired`. `decade`: `1950s` to `2020s`. `sort`: `notable` (default), `name`, `career`. Returns `items`, `total`, `facets` (counts for each filter and decade) and `totalDrivers`. |
 | `GET /api/people/:driverId` | One driver's profile: story, statistics, highlights, season-by-season timeline, legacy and rivalry (curated drivers), related drivers, sources and definitions. |
 | `GET /api/prediction/next-race` | The next Grand Prix, its prediction (when qualifying exists) and the accuracy history. |
+| `GET /api/prediction/history` | Every finished race with its saved prediction and the real result (from `server/data/predictions.json`). Run `cd server && npm run save-predictions` (needs Python) after each race, then commit the file. |
 | `GET /api/prediction/:season/:round` | Prediction for any race from 2015 on, rebuilt using only earlier races, and compared with the actual result when it has been run. |
 
 ## How the data is handled
